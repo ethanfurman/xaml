@@ -12,6 +12,7 @@ setup( name='xaml',
        provides=['xaml'],
        author='Ethan Furman',
        author_email='ethan@stoneleaf.us',
+       url='https://bitbucket.org/stoneleaf.xaml',
        classifiers=[
             'Development Status :: 3 - Alpha',
             'Intended Audience :: Developers',
