@@ -8,10 +8,21 @@ if a line starts with any xaml component ( % @ . # $ ) that line represents an x
 
 elif a line starts with a : it is specifying how the following lines should be interpreted:
   - :python -> python code
-  - :markdown -> markdown text
-  - :css -> css styles
+  - :markdown -> markdown text (not implemented)
+  - :css -> css styles (not implemented)
 
 else the line represents the content of the xml element and cannot contain other nested elements
+
+xaml components:
+
+    % -> element name
+    @ -> name attribute
+    . -> class attribute
+    # -> id attribute
+    $ -> string attribute (_ to ' ' conversion not implemented)
+
+    e.g. %document .bold #doc_1 @AutoBiography $My_Biography ->
+         <document class="bold" id="doc_1" name="AutoBiography" string="My Biography"/>
 """
 
 from enum import Enum
@@ -20,6 +31,8 @@ import unicodedata
 
 __all__ = ['Xaml', ]
 __metaclass__ = type
+
+version = 0, 1, 01
 
 module = globals()
 
