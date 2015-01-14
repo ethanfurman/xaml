@@ -1,28 +1,8 @@
 """xaml -- xml abstract markup language
 
-an easier way for humans to write xml
+https://bitbucket.org/stoneleaf/xaml
 
-if a line starts with any xaml component ( % @ . # $ ) that line represents an xml element
-  - an element continues until eol, or an unquoted :
-  - an element can be continued to the next line(s) using unquoted parens
-
-elif a line starts with a : it is specifying how the following lines should be interpreted:
-  - :python -> python code
-  - :markdown -> markdown text (not implemented)
-  - :css -> css styles (not implemented)
-
-else the line represents the content of the xml element and cannot contain other nested elements
-
-xaml components:
-
-    % -> element name
-    @ -> name attribute
-    . -> class attribute
-    # -> id attribute
-    $ -> string attribute (_ to ' ' conversion not implemented)
-
-    e.g. %document .bold #doc_1 @AutoBiography $My_Biography ->
-         <document class="bold" id="doc_1" name="AutoBiography" string="My Biography"/>
+Copyright 2015 Ethan Furman -- All rights reserved.
 """
 
 from enum import Enum
