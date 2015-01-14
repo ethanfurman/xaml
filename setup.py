@@ -12,7 +12,7 @@ else:
 setup( name='xaml',
        version= '0.1.01',
        license='BSD License',
-       description='write XML without writing XML',
+       description='XML Abstract Markup Language',
        long_description=long_desc,
        py_modules=['xaml', 'xaml_test'],
        provides=['xaml'],
