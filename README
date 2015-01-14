@@ -1,0 +1,11 @@
+xaml -- XML Abstract Markup Language
+====================================
+
+Based on haml [1] but aimed at Python.
+
+Still in its early stages -- send email to ethan at stoneleaf dot us if you
+would like to get involved!
+
+Mercurial repository, wiki, and issue tracker at:
+
+  https://bitbucket.org/stoneleaf/xaml
