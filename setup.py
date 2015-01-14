@@ -10,7 +10,7 @@ else:
     requirements = ['scription']
 
 setup( name='xaml',
-       version= '0.1.01',
+       version= '0.1.02',
        license='BSD License',
        description='XML Abstract Markup Language',
        long_description=long_desc,
