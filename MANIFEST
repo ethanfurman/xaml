@@ -1,6 +1,6 @@
-CHANGES
-LICENSE
-README
+xaml/CHANGES
+xaml/LICENSE
+xaml/README
+xaml/__init__.py
+xaml/test.py
 setup.py
-xaml.py
-xaml_test.py

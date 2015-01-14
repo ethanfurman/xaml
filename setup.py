@@ -4,18 +4,17 @@ import sys
 with open('README') as fh:
     long_desc = fh.read()
 
+requirements = ['antipathy', 'scription']
 if sys.version_info < (3, 4):
-    requirements = ['scription', 'enum34']
-else:
-    requirements = ['scription']
+    requirements.append('enum34')
 
 setup( name='xaml',
-       version= '0.1.04',
+       version= '0.1.05',
        license='BSD License',
        description='XML Abstract Markup Language',
        long_description=long_desc,
-       py_modules=['xaml', 'xaml_test'],
-       provides=['xaml'],
+       packages=['xaml'],
+       package_data{'xaml':['CHANGES', 'LICENSE', 'README']},
        install_requires=requirements,
        author='Ethan Furman',
        author_email='ethan@stoneleaf.us',
