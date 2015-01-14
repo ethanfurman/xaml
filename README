@@ -7,20 +7,20 @@ if a line starts with any xaml component ( % @ . # $ ) that line represents an x
   - an element continues until eol, or an unquoted :
   - an element can be continued to the next line(s) using unquoted parens
 
-elif a line starts with a : it is specifying how the following lines should be interpreted:
+elif a line starts with a ":" it is specifying how the following lines should be interpreted:
   - :python -> python code
   - :markdown -> markdown text (not implemented)
   - :css -> css styles (not implemented)
 
 else the line represents the content of the xml element and cannot contain other nested elements
 
-xaml components:
+xaml components
 
-    % -> element name
-    @ -> name attribute
-    . -> class attribute
-    # -> id attribute
-    $ -> string attribute (_ to ' ' conversion not implemented)
+- % -> element name
+  - @ -> name attribute
+  - . -> class attribute
+  - # -> id attribute
+  - $ -> string attribute (_ to ' ' conversion not implemented)
 
     e.g. %document .bold #doc_1 @AutoBiography $My_Biography ->
          <document class="bold" id="doc_1" name="AutoBiography" string="My Biography"/>
@@ -30,7 +30,7 @@ Based on haml [1] but aimed at Python.
 Still in its early stages -- send email to ethan at stoneleaf dot us if you
 would like to get involved!
 
-Mercurial repository, wiki, and issue tracker at:
+Mercurial repository, wiki, and issue tracker at
 
   https://bitbucket.org/stoneleaf/xaml
 
