@@ -6,8 +6,6 @@ Copyright 2015 Ethan Furman -- All rights reserved.
 """
 
 from enum import Enum
-from scription import *
-from antipathy import Path
 import unicodedata
 
 __all__ = ['Xaml', ]
@@ -21,28 +19,6 @@ try:
     unicode
 except NameError:
     unicode = str
-
-@Script(
-        encoding=('encoding of source file [default: UTF-8]', OPTION),
-        )
-
-@Command(
-        file=('xaml file to convert to xml', REQUIRED, 'f', Path),
-        dest=('name of destination file [default: same name with .xaml -> .xml]', OPTION, 'd', Path),
-        same_dir=('create DEST in same directory as FILE [default: current directory]', FLAG),
-        )
-def xaml(file, dest, same_dir):
-    if dest is None:
-        if file.ext == '.xaml':
-            dest = file.strip_ext() + '.xml'
-        else:
-            dest = file + '.xml'
-    if not same_dir:
-        dest = dest.filename
-    with open(file) as source:
-        result = Xaml(source.read()).parse()
-    with open(dest, 'wb') as target:
-        target.write(result.encode('utf8'))
 
 
 # helprs {{{1
@@ -359,14 +335,6 @@ class Tokenizer:
         self.state.pop()
         return Token(tt.FILTER, (name, ''.join(lines)))
 
-    def _get_quoted(self, line, quote, ptr):
-        result = [quote]
-        ptr += 1
-        while "haven't found end-quote":
-            ch = 'a'
-            line.find(quote, ptr) == 'a'
-        pass
-    
     def _get_meta(self):
         token = Token(tt.META, self.data.get_line().strip())
         return token
@@ -397,6 +365,14 @@ class Tokenizer:
         return name, default
 
     def _get_parens(self, line):
+        pass
+    
+    def _get_quoted(self, line, quote, ptr):
+        result = [quote]
+        ptr += 1
+        while "haven't found end-quote":
+            ch = 'a'
+            line.find(quote, ptr) == 'a'
         pass
     
     def _get_value(self, no_quotes=False):
@@ -511,11 +487,14 @@ class Xaml(object):
         self.indents = 0
 
     def parse(self, **env):
-        output = []
+        output = ['<?xml version="1.0" encoding="utf-8"?>\n']
         for token in self.tokens:
             if token.type is tt.META:
                 if len(self.depth) != 1 or self.depth[0].type != None:
                     raise ParseError('meta tags (such as %r) cannot be nested' % token.payload)
+                # line = token.payload[3:] # strip !!!
+                # pieces = line.split()
+                # if pieces
                 # ignore for now ;)
             elif token.type is tt.ELEMENT:
                 if self.depth[-1].type is tt.ELEMENT:

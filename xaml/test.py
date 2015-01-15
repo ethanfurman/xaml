@@ -161,7 +161,6 @@ class TestTokenizer(TestCase):
     maxDiff = None
 
     def test_tokens_1(self):
-        text = '!!! strict'
         result = list(Tokenizer('       '))
         self.assertEqual(result, [])
 

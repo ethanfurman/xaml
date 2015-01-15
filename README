@@ -22,9 +22,9 @@ xaml components
   - # -> id attribute
   - $ -> string attribute (_ to ' ' conversion not implemented)
 
-         e.g. %document .bold #doc_1 @AutoBiography $My_Biography ->
+    e.g. %document .bold #doc_1 @AutoBiography $My_Biography ->
 
-         <document class="bold" id="doc_1" name="AutoBiography" string="My Biography"/>
+    <document class="bold" id="doc_1" name="AutoBiography" string="My Biography"/>
 
 Based on haml [1] but aimed at Python.
 
