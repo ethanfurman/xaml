@@ -171,6 +171,7 @@ class TestTokenizer(TestCase):
         self.assertEqual(None, result[0].payload)
         self.assertEqual('!!!', result[1].payload)
 
+
     def test_tokens_3(self):
         result = list(Tokenizer(u'%opentag\n  %level_one\n    %field @code: Code goes here'))
         self.assertEqual(
@@ -211,7 +212,7 @@ class TestTokenizer(TestCase):
             result,
             )
 
-    def test_token_5(self):
+    def test_tokens_5(self):
         result = list(xaml.Tokenizer(dedent(u'''
         %openerp
            %record #fax_id view='ui.ir.view'
@@ -270,6 +271,9 @@ class TestTokenizer(TestCase):
             ],
             result,
             )
+
+    def test_meta_token(self):
+        result = list(xaml
 
     def test_string_tokens(self):
         result = list(xaml.Tokenizer('%test_tag $This_could_be_VERY_cool!'))

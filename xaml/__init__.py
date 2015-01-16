@@ -336,10 +336,19 @@ class Tokenizer:
         return Token(tt.FILTER, (name, ''.join(lines)))
 
     def _get_meta(self):
-        token = Token(tt.META, self.data.get_line().strip())
+        name = self._get_name(extra_chars='.', extra_types=('N',))
+        token = Token(tt.META, name)
+        self.state.pop()
+        self.state.append(s.ELEMENT)
         return token
 
-    def _get_name(self, extra_terminators=()):
+    def _get_name(self, extra_chars=(), extra_types=(), extra_terminators=()):
+        """
+        gets the next name, defaults to letters and '_' only
+        extra_chars should be a sequence of actual extra allowed non-letter characters
+        extra_types should be a sequence of extra unicode character types
+        extra_terminators should be a sequence of extra allowed name terminators
+        """
         # check for shortcuts first
         ch = self.data.get_char()
         name = self.defaults.get(ch, [])
@@ -350,11 +359,12 @@ class Tokenizer:
             default = True
         else:
             while 'collecting letters':
-                if unicodedata.category(ch)[0] != 'L' and ch != '_':
+                uni_cat = unicodedata.category(ch)[0]
+                if uni_cat not in ('L') + extra_types and ch not in ('_') + extra_chars:
                     break
                 name.append(ch)
                 ch = self.data.get_char()
-            # valid stop chars are ' ', '\n', and None, and extra_terminators
+            # valid stop chars are ' ', '\n', None, and extra_terminators
             name = ''.join(name)
             if ch in ':/\n' or ch in extra_terminators:
                 self.data.push_char(ch)
