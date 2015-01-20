@@ -2,5 +2,6 @@ xaml/CHANGES
 xaml/LICENSE
 xaml/README
 xaml/__init__.py
+xaml/__main__.py
 xaml/test.py
 setup.py

@@ -4,8 +4,10 @@ https://bitbucket.org/stoneleaf/xaml
 
 Copyright 2015 Ethan Furman -- All rights reserved.
 """
-
+from __future__ import unicode_literals
 from enum import Enum
+import re
+import sys
 import unicodedata
 
 __all__ = ['Xaml', ]
@@ -96,9 +98,22 @@ class PPLCStream:
     """
 
     def __init__(self, text):
-        if text[-1] == '\n':
-            text = text[:-1]
-        self.data = text.split('\n')
+        if not isinstance(text, unicode):
+            if text.startswith(b'!!! coding:'):
+                encoding = re.search('\w*', text[12:22]).group()
+                if encoding:
+                    try:
+                        text = text.decode(encoding).rstrip().split('\n')[1:]
+                    except LookupError:
+                        exc = sys.exc_info()[1]
+                        raise SystemExit(exc)
+                else:
+                    raise SystemExit("no encoding specified in '!!! coding: ...'")
+            else:
+                text = text.decode('ascii').rstrip().split('\n')
+        else:
+            text = text.rstrip().split('\n')
+        self.data = text
         self.data.reverse()
         self.chars = []
         self.lines = []
@@ -169,6 +184,7 @@ class PPLCStream:
             if char_line:
                 self.lines.append(char_line.rstrip('\n'))
                 self.line -= 1
+        self.line -= 1
         line = line.rstrip('\n')
         self.lines.append(line)
 
@@ -208,16 +224,14 @@ class Token:
 class Tokenizer:
 
     defaults = {
-            '%' : u'field',
-            '@' : u'name',
-            '.' : u'class',
-            '#' : u'id',
-            '$' : u'string',
+            '%' : 'field',
+            '@' : 'name',
+            '.' : 'class',
+            '#' : 'id',
+            '$' : 'string',
             }
 
     def __init__(self, text):
-        if not isinstance(text, unicode):
-            text = text.decode('ascii')
         self.data = PPLCStream(text)
         self.state = [s.NORMAL]
         self.indents = [0]
@@ -247,6 +261,7 @@ class Tokenizer:
         '''
         returns attribute name and value
         '''
+        self._consume_ws()
         # check if the element has ended
         ch = self.data.peek_char()
         if ch in '/:\n':
@@ -264,6 +279,8 @@ class Tokenizer:
         if ch == '=':
             self.data.get_char()
             attr_type, value = self._get_value(disallow_quotes)
+            if name in ('string', ):
+                value = value.replace('_', ' ')
         else:
             attr_type = tt.STR_ATTR
             value = name
@@ -336,7 +353,10 @@ class Tokenizer:
         return Token(tt.FILTER, (name, ''.join(lines)))
 
     def _get_meta(self):
-        name = self._get_name(extra_chars='.', extra_types=('N',))
+        self.data.push_line(self.data.get_line()[3:])
+        name, _ = self._get_name(extra_chars='.', extra_types=('N',))
+        if name in ('xml', 'xml1.0'):
+            name = 'xml', '1.0'
         token = Token(tt.META, name)
         self.state.pop()
         self.state.append(s.ELEMENT)
@@ -349,6 +369,7 @@ class Tokenizer:
         extra_types should be a sequence of extra unicode character types
         extra_terminators should be a sequence of extra allowed name terminators
         """
+        self._consume_ws()
         # check for shortcuts first
         ch = self.data.get_char()
         name = self.defaults.get(ch, [])
@@ -360,7 +381,9 @@ class Tokenizer:
         else:
             while 'collecting letters':
                 uni_cat = unicodedata.category(ch)[0]
-                if uni_cat not in ('L') + extra_types and ch not in ('_') + extra_chars:
+                if (uni_cat not in ('L', ) + tuple(extra_types) and
+                    ch not in ('_', ) + tuple(extra_chars)
+                    ):
                     break
                 name.append(ch)
                 ch = self.data.get_char()
@@ -369,9 +392,10 @@ class Tokenizer:
             if ch in ':/\n' or ch in extra_terminators:
                 self.data.push_char(ch)
             elif ch not in (' ', None):
-                raise ParseError('element name %r followed by invalid char: %r' % (name, ch))
-            if ch == ' ' or ch in extra_terminators:
-                self._consume_ws()
+                raise ParseError('element name %r followed by invalid char %r in line %r' %
+                        (name, ch, self.data.line))
+            # if ch == ' ' or ch in extra_terminators:
+            #     self._consume_ws()
         return name, default
 
     def _get_parens(self, line):
@@ -439,9 +463,10 @@ class Tokenizer:
         return token_type, value
 
     def _wind_down(self):
-        if len(self.indents) <= 1:
+        try:
+            self.indents.pop()
+        except IndexError:
             return None
-        self.indents.pop()
         return Token(tt.DEDENT)
 
     def get_token(self):
@@ -492,22 +517,46 @@ class Xaml(object):
 
     def __init__(self, text):
         # indents tracks valid indentation levels
-        self.tokens = Tokenizer(text)
+        self.tokens = list(Tokenizer(text))
         self.depth = [Token(None)]
         self.indents = 0
+        self.encoding = 'utf-8'
 
     def parse(self, **env):
-        output = ['<?xml version="1.0" encoding="utf-8"?>\n']
+        encoding_specified = False
+        output = []
         for token in self.tokens:
+            last_element = self.depth[-1]
+            if last_element.type is tt.META:
+                if token.type is tt.STR_ATTR:
+                    name, value = token.payload
+                    if last_element.payload[0] == 'xml':
+                        if not encoding_specified and name == 'encoding':
+                            encoding_specified = True
+                            self.encoding = value
+                    output[-1] += ' %s="%s"' % (name, value)
+                    continue
+                elif token.type not in (tt.CODE_ATTR, tt.STR_DATA, tt.CODE_DATA):
+                    if last_element.payload[0] == 'xml' and not encoding_specified:
+                        self.encoding = 'utf-8'
+                        output[-1] += ' encoding="utf-8"'
+                    output[-1] += '?>\n'
+                    self.depth.pop()
+                    if token.type is tt.DEDENT:
+                        break
+                else:
+                    raise SystemExit('Token %s not allowed in/after META token' % token)
             if token.type is tt.META:
                 if len(self.depth) != 1 or self.depth[0].type != None:
                     raise ParseError('meta tags (such as %r) cannot be nested' % token.payload)
-                # line = token.payload[3:] # strip !!!
-                # pieces = line.split()
-                # if pieces
-                # ignore for now ;)
+                name, value = token.payload
+                if name == 'xml':
+                    output.append('<?xml version="%s"' % value)
+                else:
+                    raise SystemExit('unknown META: %r' % ((name, value)))
+                self.depth.append(token)
             elif token.type is tt.ELEMENT:
-                if self.depth[-1].type is tt.ELEMENT:
+                if last_element.type is tt.ELEMENT:
                     # close previous element
                     output[-1] += '/>\n'
                     self.depth.pop()
@@ -515,7 +564,7 @@ class Xaml(object):
                 output.append('<%s' % token.payload)
                 self.depth.append(token)
             elif token.type in (tt.CODE_ATTR, tt.STR_ATTR):
-                assert self.depth[-1].type is tt.ELEMENT, 'the tokenizer is busted'
+                assert last_element.type is tt.ELEMENT, 'the tokenizer is busted'
                 name, value = token.payload
                 if token.type is tt.CODE_ATTR:
                     value = eval(value, env)
@@ -533,20 +582,25 @@ class Xaml(object):
                 string += value + '</%s>\n' % token.payload
                 output[-1] += string
             elif token.type is tt.INDENT:
-                if self.depth[-1].type is tt.ELEMENT:
+                if last_element.type is tt.ELEMENT:
                     output[-1] += '>\n'
                 self.indents += 1
                 self.depth.append(token)
             elif token.type is tt.DEDENT:
                 # need to close the immediately preceeding tag, and the
-                # tage dedented to
+                # tags dedented to
                 self.indents -= 1
-                if self.depth[-1].type is tt.ELEMENT:
+                if last_element.type is tt.ELEMENT:
                     output[-1] += '/>\n'
                     self.depth.pop()
                 should_be_indent = self.depth.pop()
-                assert should_be_indent.type is tt.INDENT, 'the tokenizer is busted'
-                if self.depth[-1].type is tt.ELEMENT:
+                assert should_be_indent.type in (tt.INDENT, None), 'the tokenizer is busted'
+                try:
+                    last_element = self.depth[-1]
+                except IndexError:
+                    # all done!
+                    break
+                if last_element.type is tt.ELEMENT:
                     closing_token = self.depth.pop()
                     output.append('    ' * self.indents)
                     output[-1] += '</%s>\n' % closing_token.payload
@@ -561,7 +615,7 @@ class Xaml(object):
                 else:
                     raise ParseError('unknown filter: %r' % name)
 
-        return ''.join(output)
+        return ''.join(output).encode(self.encoding)
 
 
 class ParseError(Exception):
