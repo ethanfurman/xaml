@@ -1,5 +1,18 @@
+0.1.08
+======
+
+more functionality in place
+
+  - meta command for input file encoding
+  - meta command for xml/html/whatever (only xml1.0 supported so far)
+
+  - parens now supported
+  - comments now supported
+  - blank lines passed through to final xml file
+
+
 0.1
 ===
 
-First release: basic functionality in tact, many refinements and extended
+First release: basic functionality intact, many refinements and extended
 functionality still needed.

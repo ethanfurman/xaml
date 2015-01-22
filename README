@@ -12,7 +12,9 @@ elif a line starts with a ":" it is specifying how the following lines should be
   - :markdown -> markdown text (not implemented)
   - :css -> css styles (not implemented)
 
-else the line represents the content of the xml element and cannot contain other nested elements
+elif a line starts with // it is a comment, and will be converted into an xml comment
+
+else the line represents the content of the xml element
 
 xaml components
 
