@@ -1,7 +1,7 @@
 from distutils.core import setup
 import sys
 
-with open('README') as fh:
+with open('xaml/README') as fh:
     long_desc = fh.read()
 
 requirements = ['antipathy', 'scription']
