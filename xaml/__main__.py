@@ -21,12 +21,12 @@ def xaml(file, dest, same_dir):
     if not same_dir:
         dest = dest.filename
     with open(file) as source:
-        result = Xaml(source.read()).parse()
+        xaml_doc = Xaml(source.read()).parse()
     if display:
-        print(result)
+        print(xaml_doc.string())
     else:
         with open(dest, 'wb') as target:
-            target.write(result)
+            target.write(xaml_doc.bytes())
 
 @Command(
         file=('xaml file to convert to xml', REQUIRED, 'f', Path),

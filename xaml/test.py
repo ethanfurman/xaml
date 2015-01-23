@@ -2,19 +2,31 @@ from __future__ import unicode_literals
 from unittest import TestCase, main
 from textwrap import dedent
 import xaml
-from xaml import Xaml, PPLCStream, Token, Tokenizer, TokenType, State
+from xaml import Xaml, PPLCStream, Token, Tokenizer, TokenType, State, ML
 
 s = State
 tt = TokenType
 
+
+class TestML(TestCase):
+
+    def test_xml(self):
+        meta = ML('<?xml version="1.0" encoding="utf8"?>')
+        self.assertEqual(str(meta), '<?xml version="1.0"?>\n')
+        self.assertEqual(meta.bytes(), '<?xml version="1.0" encoding="utf8"?>\n'.encode('utf8'))
 
 class TestXaml(TestCase):
 
     maxDiff = None
 
     def test_meta_coding(self):
-        result = Xaml('!!! coding: cp1252\n!!! xml'.encode('cp1252')).parse()
-        expected = b'<?xml version="1.0" encoding="utf-8"?>\n'
+        result = Xaml('!!! coding: cp1252\n!!! xml'.encode('cp1252')).parse().bytes()
+        expected = '<?xml version="1.0" encoding="utf8"?>\n'.encode('utf8')
+        self.assertEqual(expected, result)
+
+    def test_xmlify_str_attr(self):
+        result = Xaml("%Test colors='blue:days_left<=days_warn and days_left>0;red:days_left<=0;'").parse().string()
+        expected = '<Test colors="blue:days_left&lt;=days_warn and days_left&gt;0;red:days_left&lt;=0;"/>\n'
         self.assertEqual(expected, result)
 
     def test_comment(self):
@@ -30,14 +42,14 @@ class TestXaml(TestCase):
             '''    <data>\n'''
             '''\n'''
             '''        <!--\n'''
-            '''         -- a random comment\n'''
-            '''         -- a scheduled comment\n'''
+            '''         |  a random comment\n'''
+            '''         |  a scheduled comment\n'''
             '''        -->\n'''
             '''\n'''
             '''    </data>\n'''
             '''</opentag>\n'''
-            ).encode('utf-8')
-        self.assertEqual(expected, Xaml(input).parse())
+            ).encode('utf8')
+        self.assertEqual(expected, Xaml(input).parse().bytes())
 
     def test_nested_comments(self):
         input = (
@@ -69,7 +81,7 @@ class TestXaml(TestCase):
             '''    <data>\n'''
             '''\n'''
             '''        <!--\n'''
-            '''         -- testing\n'''
+            '''         |  testing\n'''
             '''        -->\n'''
             '''\n'''
             '''        <record view="ir.ui.view" id="testing">\n'''
@@ -98,8 +110,8 @@ class TestXaml(TestCase):
             '''\n'''
             '''    </data>\n'''
             '''</opentag>\n'''
-            ).encode('utf-8')
-        self.assertEqual(expected, Xaml(input).parse())
+            )
+        self.assertEqual(expected, Xaml(input).parse().string())
 
     def test_same_level_comments(self):
         input = (
@@ -123,7 +135,7 @@ class TestXaml(TestCase):
             '''        <record view="ir.ui.view" id="testing"/>\n'''
             '''\n'''
             '''        <!--\n'''
-            '''         -- testing\n'''
+            '''         |  testing\n'''
             '''        -->\n'''
             '''\n'''
             '''        <record view="ir.actions.act_window" id="more_testing">\n'''
@@ -135,8 +147,8 @@ class TestXaml(TestCase):
             '''\n'''
             '''    </data>\n'''
             '''</opentag>\n'''
-            ).encode('utf-8')
-        self.assertEqual(expected, Xaml(input).parse())
+            ).encode('utf8')
+        self.assertEqual(expected, Xaml(input).parse().bytes())
 
     def test_random_content(self):
         input = (
@@ -160,8 +172,8 @@ class TestXaml(TestCase):
             '''\n'''
             '''    </data>\n'''
             '''</opentag>\n'''
-            ).encode('utf8')
-        self.assertEqual(expected, Xaml(input).parse())
+            )
+        self.assertEqual(expected, Xaml(input).parse().string())
 
     def test_random_content_with_newlines_after(self):
         input = (
@@ -188,7 +200,7 @@ class TestXaml(TestCase):
             '''    </data>\n'''
             '''</opentag>\n'''
             ).encode('utf8')
-        self.assertEqual(expected, Xaml(input).parse())
+        self.assertEqual(expected, Xaml(input).parse().bytes())
 
     def test_random_content_with_newlines_around(self):
         input = (
@@ -216,8 +228,8 @@ class TestXaml(TestCase):
             '''\n'''
             '''    </data>\n'''
             '''</opentag>\n'''
-            ).encode('utf8')
-        self.assertEqual(expected, Xaml(input).parse())
+            )
+        self.assertEqual(expected, Xaml(input).parse().string())
 
     def test_random_content_with_newlines_before(self):
         input = (
@@ -244,7 +256,7 @@ class TestXaml(TestCase):
             '''    </data>\n'''
             '''</opentag>\n'''
             ).encode('utf8')
-        self.assertEqual(expected, Xaml(input).parse())
+        self.assertEqual(expected, Xaml(input).parse().bytes())
 
     def test_simple(self):
         input = (
@@ -258,8 +270,8 @@ class TestXaml(TestCase):
             '''        <field name="code">Code goes here</field>\n'''
             '''    </level_one>\n'''
             '''</opentag>\n'''
-            ).encode('utf-8')
-        self.assertEqual(expected, Xaml(input).parse())
+            )
+        self.assertEqual(expected, Xaml(input).parse().string())
 
     def test_nested(self):
         input = (
@@ -296,27 +308,39 @@ class TestXaml(TestCase):
             '''        </field>\n'''
             '''    </record>\n'''
             '''</openerp>\n'''
-            ).encode('utf-8')
-        self.assertEqual(expected, Xaml(input).parse())
+            ).encode('utf8')
+        self.assertEqual(expected, Xaml(input).parse().bytes())
 
     def test_meta_closing(self):
-        result = Xaml('!!! xml1.0').parse()
+        result = Xaml('!!! xml1.0').parse().bytes()
         self.assertEqual(
-                '<?xml version="1.0" encoding="utf-8"?>\n'.encode('utf-8'),
+                '<?xml version="1.0" encoding="utf8"?>\n'.encode('utf8'),
                 result,
                 )
 
-    def test_meta_xml_version(self):
-        result = Xaml('!!! xml1.0 encoding="cp1252"').parse()
+    # TODO: enable this test once encodings besides utf8 are supported
+    # def test_meta_xml_non_utf_encoding(self):
+    #     result = Xaml('!!! xml1.0 encoding="cp1252"').parse().string()
+    #     self.assertEqual(
+    #             '<?xml version="1.0" encoding="cp1252"?>\n'.encode('utf8'),
+    #             result,
+    #             )
+
+    def test_meta_xml_utf_encoding(self):
+        doc = Xaml('!!! xml1.0 encoding="utf8"').parse()
         self.assertEqual(
-                '<?xml version="1.0" encoding="cp1252"?>\n'.encode('utf-8'),
-                result,
+                '<?xml version="1.0" encoding="utf8"?>\n'.encode('utf8'),
+                doc.bytes(),
+                )
+        self.assertEqual(
+                '<?xml version="1.0"?>\n',
+                doc.string(),
                 )
 
     def test_element_closing(self):
-        result = Xaml('%opentag').parse()
+        result = Xaml('%opentag').parse().bytes()
         self.assertEqual(
-                '<opentag/>\n'.encode('utf-8'),
+                '<opentag/>\n'.encode('utf8'),
                 result,
                 )
 
@@ -355,8 +379,8 @@ class TestXaml(TestCase):
             '''        </record>\n'''
             '''    </data>\n'''
             '''</openerp>\n'''
-            ).encode('utf-8')
-        self.assertEqual(expected, Xaml(input).parse())
+            )
+        self.assertEqual(expected, Xaml(input).parse().string())
 
     def test_filter_2(self):
         input = (
@@ -407,8 +431,8 @@ class TestXaml(TestCase):
             '''        </record>\n'''
             '''    </data>\n'''
             '''</openerp>\n'''
-            ).encode('utf-8')
-        self.assertEqual(expected, Xaml(input).parse())
+            ).encode('utf8')
+        self.assertEqual(expected, Xaml(input).parse().bytes())
 
 class TestPPLCStream(TestCase):
 
@@ -477,7 +501,7 @@ class TestTokenizer(TestCase):
         self.assertEqual(
             [
                 Token(tt.ELEMENT, 'opentag'),
-                Token(tt.STR_ATTR, ('name', 'value')),
+                Token(tt.STR_ATTR, ('name', 'value'), True),
                 Token(tt.DEDENT),
             ],
             result,
@@ -529,8 +553,8 @@ class TestTokenizer(TestCase):
                 Token(tt.ELEMENT, 'level_one'),
                 Token(tt.INDENT),
                 Token(tt.ELEMENT, 'field'),
-                Token(tt.STR_ATTR, ('name', 'code')),
-                Token(tt.STR_DATA, 'Code goes here', xml_safe=True),
+                Token(tt.STR_ATTR, ('name', 'code'), True),
+                Token(tt.STR_DATA, 'Code goes here', make_safe=True),
                 Token(tt.DEDENT),
                 Token(tt.DEDENT),
                 Token(tt.DEDENT),
@@ -556,15 +580,15 @@ class TestTokenizer(TestCase):
                 Token(tt.ELEMENT, 'openerp'),
                 Token(tt.INDENT),
                 Token(tt.ELEMENT, 'record'),
-                Token(tt.STR_ATTR, ('id', 'some_id')),
-                Token(tt.CODE_ATTR, ('model', 'view')),
+                Token(tt.STR_ATTR, ('id', 'some_id'), True),
+                Token(tt.CODE_ATTR, ('model', 'view'), True),
                 Token(tt.INDENT),
                 Token(tt.ELEMENT, 'field'),
-                Token(tt.STR_ATTR, ('name', 'name')),
+                Token(tt.STR_ATTR, ('name', 'name'), True),
                 Token(tt.STR_DATA, 'Folders', True),
                 Token(tt.ELEMENT, 'field'),
-                Token(tt.STR_ATTR, ('name', 'arch')),
-                Token(tt.STR_ATTR, ('type', 'xml')),
+                Token(tt.STR_ATTR, ('name', 'arch'), True),
+                Token(tt.STR_ATTR, ('type', 'xml'), True),
                 Token(tt.DEDENT),
                 Token(tt.DEDENT),
                 Token(tt.DEDENT),
@@ -594,36 +618,36 @@ class TestTokenizer(TestCase):
                 Token(TokenType.ELEMENT, payload='openerp'),
                 Token(TokenType.INDENT),
                 Token(TokenType.ELEMENT, payload='record'),
-                Token(TokenType.STR_ATTR, payload=('id', 'fax_id')),
-                Token(TokenType.STR_ATTR, payload=('view', 'ui.ir.view')),
+                Token(TokenType.STR_ATTR, payload=('id', 'fax_id'), make_safe=True),
+                Token(TokenType.STR_ATTR, payload=('view', 'ui.ir.view'), make_safe=True),
                 Token(TokenType.INDENT),
                 Token(TokenType.ELEMENT, payload='field'),
-                Token(TokenType.STR_ATTR, payload=('name', 'name')),
-                Token(TokenType.STR_DATA, payload='Folders', xml_safe=True),
+                Token(TokenType.STR_ATTR, payload=('name', 'name'), make_safe=True),
+                Token(TokenType.STR_DATA, payload='Folders', make_safe=True),
                 Token(TokenType.ELEMENT, payload='field'),
-                Token(TokenType.STR_ATTR, payload=('name', 'arch')),
-                Token(TokenType.STR_ATTR, payload=('type', 'xml')),
+                Token(TokenType.STR_ATTR, payload=('name', 'arch'), make_safe=True),
+                Token(TokenType.STR_ATTR, payload=('type', 'xml'), make_safe=True),
                 Token(TokenType.INDENT),
                 Token(TokenType.ELEMENT, payload='form'),
-                Token(TokenType.STR_ATTR, payload=('string', 'Folders')),
-                Token(TokenType.STR_ATTR, payload=('version', '7.0')),
+                Token(TokenType.STR_ATTR, payload=('string', 'Folders'), make_safe=True),
+                Token(TokenType.STR_ATTR, payload=('version', '7.0'), make_safe=True),
                 Token(TokenType.INDENT),
                 Token(TokenType.ELEMENT, payload='group'),
                 Token(TokenType.INDENT),
                 Token(TokenType.ELEMENT, payload='group'),
                 Token(TokenType.INDENT),
                 Token(TokenType.ELEMENT, payload='field'),
-                Token(TokenType.STR_ATTR, payload=('name', 'id')),
-                Token(TokenType.STR_ATTR, payload=('invisibility', '1')),
+                Token(TokenType.STR_ATTR, payload=('name', 'id'), make_safe=True),
+                Token(TokenType.STR_ATTR, payload=('invisibility', '1'), make_safe=True),
                 Token(TokenType.ELEMENT, payload='field'),
-                Token(TokenType.STR_ATTR, payload=('name', 'name')),
+                Token(TokenType.STR_ATTR, payload=('name', 'name'), make_safe=True),
                 Token(TokenType.ELEMENT, payload='field'),
-                Token(TokenType.STR_ATTR, payload=('name', 'path')),
+                Token(TokenType.STR_ATTR, payload=('name', 'path'), make_safe=True),
                 Token(TokenType.DEDENT),
                 Token(TokenType.ELEMENT, payload='group'),
                 Token(TokenType.INDENT),
                 Token(TokenType.ELEMENT, payload='field'),
-                Token(TokenType.STR_ATTR, payload=('name', 'folder_type')),
+                Token(TokenType.STR_ATTR, payload=('name', 'folder_type'), make_safe=True),
                 Token(TokenType.DEDENT),
                 Token(TokenType.DEDENT),
                 Token(TokenType.DEDENT),
@@ -650,7 +674,7 @@ class TestTokenizer(TestCase):
         self.assertEqual(
             [
                 Token(tt.ELEMENT, 'test_tag'),
-                Token(tt.STR_ATTR, ('string', 'This could be VERY cool!')),
+                Token(tt.STR_ATTR, ('string', 'This could be VERY cool!'), True),
                 Token(tt.DEDENT),
             ],
             result,
@@ -665,8 +689,8 @@ class TestTokenizer(TestCase):
                 Token(tt.ELEMENT, 'record_tag'),
                 Token(tt.INDENT),
                 Token(tt.ELEMENT, 'field'),
-                Token(tt.STR_ATTR, ('name', 'Setting')),
-                Token(tt.CODE_DATA, 'a_var', xml_safe=True),
+                Token(tt.STR_ATTR, ('name', 'Setting'), True),
+                Token(tt.CODE_DATA, 'a_var', make_safe=True),
                 Token(tt.DEDENT),
                 Token(tt.DEDENT),
                 Token(tt.DEDENT),

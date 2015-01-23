@@ -22,6 +22,8 @@ try:
 except NameError:
     unicode = str
 
+# only change default_encoding if you cannot specify the proper encoding with a meta tag
+default_encoding = 'utf8'
 
 # helprs {{{1
 class AutoEnum(Enum):
@@ -199,17 +201,17 @@ class PPLCStream:
 # Token and Tokenizer {{{1
 class Token:
 
-    def __init__(self, ttype, payload=None, xml_safe=None):
+    def __init__(self, ttype, payload=None, make_safe=True):
         self.type = ttype
         if payload is not None and isinstance(payload, unicode):
             payload = (payload, )
         self.payload = payload
-        self.xml_safe = xml_safe
+        self.make_safe = make_safe
 
     def __eq__(self, other):
         if not isinstance(other, Token):
             return NotImplemented
-        for attr in ('type', 'payload', 'xml_safe'):
+        for attr in ('type', 'payload', 'make_safe'):
             if getattr(self, attr) != getattr(other, attr):
                 break
         else:
@@ -223,7 +225,7 @@ class Token:
 
     def __repr__(self):
         attrs = ['%s' % self.type]
-        for attr in ('payload', 'xml_safe'):
+        for attr in ('payload', 'make_safe'):
             val = getattr(self, attr)
             if val is not None:
                 attrs.append('%s=%r' % (attr, val))
@@ -308,7 +310,7 @@ class Tokenizer:
         else:
             attr_type = tt.STR_ATTR
             value = name
-        return Token(attr_type, (name, value))
+        return Token(attr_type, (name, value), make_safe=True)
 
     def _get_comment(self):
         line = self.data.get_line().strip()[2:]
@@ -317,14 +319,14 @@ class Tokenizer:
 
     def _get_content(self):
         line = self.data.get_line().strip()
-        return Token(tt.CONTENT, line)
+        return Token(tt.CONTENT, line, make_safe=True)
 
     def _get_data(self):
         line = self.data.get_line().strip()
-        xml_safe = True
+        make_safe = True
         data_type = tt.STR_DATA
         if line[:2] == '!=':
-            xml_safe = False
+            make_safe = False
             data_type = tt.CODE_DATA
             line = line[2:]
         elif line[0] == '=':
@@ -335,7 +337,7 @@ class Tokenizer:
             line = line[2:]
         line = self._consume_ws(line)
         self.state.pop()
-        return Token(data_type, line, xml_safe)
+        return Token(data_type, line, make_safe)
 
     def _get_denting(self):
         last_indent = self.indents[-1]
@@ -572,6 +574,45 @@ class Tokenizer:
         else:
             raise ParseError('unknown state: %s' % state)
 
+class ML:
+
+    def __init__(self, text):
+        text = text.strip()[2:-2]
+        # if any values ever have spaces, will need to change this
+        pieces = text.split()
+        self.type = pieces[0]
+        self.encoding = default_encoding
+        self.key = None
+        self.attrs = []
+        found_enc = False
+        for nv in pieces[1:]:
+            name, value = nv.split('=', 1)
+            if name == 'version':
+                self.key = self.type + value.strip('"')
+            if name == 'encoding':
+                found_enc = True
+                enc_value =  value.lower().replace('-', '').strip('"')
+                if enc_value != 'utf8':
+                    raise ParseError('only utf8 is supported (not %r)' % value)
+                self.encoding = enc_value
+            self.attrs.append((name, value))
+        if not found_enc:
+            self.attrs.append(('encoding', '"%s"' % default_encoding))
+        
+    def __str__(self):
+        res = []
+        for name, value in self.attrs:
+            if name == 'encoding':
+                continue
+            res.append('%s=%s' % (name, value))
+        return '<?%s %s?>\n' % (self.type, ' '.join(res))
+
+    def bytes(self):
+        res = []
+        for nv in self.attrs:
+            res.append('%s=%s' % nv)
+        return ('<?%s %s?>\n' % (self.type, ' '.join(res))).encode(self.encoding)
+
 
 # xaml itself {{{1
 class Xaml(object):
@@ -581,7 +622,9 @@ class Xaml(object):
         self.tokens = list(Tokenizer(text))
         self.depth = [Token(None)]
         self.indents = 0
-        self.encoding = 'utf-8'
+        self.coder = minimal
+        self.ml = None
+        self.encoding = default_encoding
 
     def _append_newline(self):
         if self.depth[-1].type not in (tt.INDENT, tt.BLANK_LINE):
@@ -604,14 +647,15 @@ class Xaml(object):
                     if last_token.payload[0] == 'xml':
                         if not encoding_specified and name == 'encoding':
                             encoding_specified = True
-                            self.encoding = value
                     output[-1] += ' %s="%s"' % (name, value)
                     continue
                 elif token.type not in (tt.CODE_ATTR, tt.STR_DATA, tt.CODE_DATA):
-                    if last_token.payload[0] == 'xml' and not encoding_specified:
-                        self.encoding = 'utf-8'
-                        output[-1] += ' encoding="utf-8"'
                     output[-1] += '?>\n'
+                    self.ml= ML(output.pop())
+                    self.coder = ml_types.get(self.ml.key)
+                    if self.coder is None:
+                        raise ParseError('markup language %r not supported' % self.ml.type)
+                    self.encoding = self.encoding
                     self.depth.pop()
                     if token.type is tt.DEDENT:
                         break
@@ -627,8 +671,8 @@ class Xaml(object):
                 name, value = token.payload
                 if token.type is tt.CODE_ATTR:
                     value = eval(value, env)
-                if token.xml_safe:
-                    value = xmlify(value)
+                if token.make_safe:
+                    value = self.coder(value)
                 output[-1] += ' %s="%s"' % (name ,value)
             # COMMENT
             elif token.type is tt.COMMENT:
@@ -643,7 +687,7 @@ class Xaml(object):
                 if self.depth[-1].type is not tt.COMMENT:
                     output.append('    ' * self.indents + '<!--\n')
                     self.depth.append(token)
-                output.append('    ' * self.indents + ' -- %s\n' % token.payload)
+                output.append('    ' * self.indents + ' |  %s\n' % token.payload)
             # CONTENT
             elif token.type is tt.CONTENT:
                 last_token, pending_newline = self._check_for_newline(last_token)
@@ -661,8 +705,8 @@ class Xaml(object):
                 value ,= token.payload
                 if token.type is tt.CODE_DATA:
                     value = eval(value, env)
-                if token.xml_safe:
-                    value = xmlify(value)
+                if token.make_safe:
+                    value = self.coder(value)
                 token = self.depth.pop()
                 string += value + '</%s>\n' % token.payload
                 output[-1] += string
@@ -745,8 +789,27 @@ class Xaml(object):
             # problem
             else:
                 raise ParseError('unknown token: %r' % token)
+        return XamlDoc(self.ml, ''.join(output))
 
-        return ''.join(output).encode(self.encoding)
+
+class XamlDoc:
+
+    def __init__(self, ml, text):
+        self.ml = ml
+        self.text = text
+        if self.ml is not None:
+            self.encoding = ml.encoding
+        else:
+            self.encoding = default_encoding
+
+    def __repr__(self):
+        return '<%s document>' % (self.ml and self.ml.type or 'generic ml')
+
+    def string(self):
+        return str(self.ml or '') + self.text
+
+    def bytes(self):
+        return (self.ml and self.ml.bytes() or b'') + self.text.encode(self.encoding)
 
 
 class ParseError(Exception):
@@ -754,15 +817,22 @@ class ParseError(Exception):
     Used for xaml parse errors
     '''
 
-def xmlify(text):
+def minimal(text):
+    cp = {
+        '<' : '&lt;',
+        '>' : '&gt;',
+        '&' : '&amp;',
+        # '"' : '&0x22;',
+        # "'" : '&0x27;',
+        }
     result = []
     for ch in text:
-        if ch == '<':
-            result.append('&lt;')
-        elif ch == '>':
-            result.append('&gt;')
-        elif ch == '&':
-            result.append('&amp;')
-        else:
-            result.append(ch)
+        ch = cp.get(ch, ch)
+        result.append(ch)
     return ''.join(result)
+
+xmlify = minimal
+
+ml_types = {
+    'xml1.0' : xmlify,
+    }
