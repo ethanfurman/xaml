@@ -13,7 +13,7 @@ import unicodedata
 __all__ = ['Xaml', ]
 __metaclass__ = type
 
-version = 0, 1, 8
+version = 0, 1, 9
 
 module = globals()
 
@@ -822,8 +822,8 @@ def minimal(text):
         '<' : '&lt;',
         '>' : '&gt;',
         '&' : '&amp;',
-        # '"' : '&0x22;',
-        # "'" : '&0x27;',
+        '"' : '&#x22;',
+        "'" : '&#x27;',
         }
     result = []
     for ch in text:

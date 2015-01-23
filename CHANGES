@@ -1,3 +1,10 @@
+0.1.09
+======
+
+add framework to allow specifying markup styles besides xml, and output
+encodings besides utf-8
+
+
 0.1.08
 ======
 
