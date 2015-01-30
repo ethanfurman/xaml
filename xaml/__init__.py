@@ -21,6 +21,7 @@ try:
     unicode
 except NameError:
     unicode = str
+    unichr = chr
 
 # only change default_encoding if you cannot specify the proper encoding with a meta tag
 default_encoding = 'utf8'
