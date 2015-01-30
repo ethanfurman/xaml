@@ -94,12 +94,26 @@ def _leading(line):
     """
     return len(line) - len(lstrip(line, ' '))
 
+invalid_xml_chars = []
+for r in (
+    range(0, 9),
+    range(0x0b, 0x0d),
+    range(0x0e, 0x20),
+    range(0xd800, 0xdfff),
+    range(0xfffe, 0x10000),
+    ):
+    for n in r:
+        invalid_xml_chars.append(unichr(n))
+invalid_xml_chars = tuple(invalid_xml_chars)
+
 
 # pushable iter for text stream {{{1
 class PPLCStream:
     """
     Peekable, Pushable, Line & Character Stream
     """
+
+    current_line = None
 
     def __init__(self, text):
         if not isinstance(text, unicode):
@@ -122,6 +136,10 @@ class PPLCStream:
                 text = text.decode('ascii').rstrip().split('\n')
         else:
             text = text.rstrip().split('\n')
+        for i, line in enumerate(text):
+            for ch in invalid_xml_chars:
+                if ch in line:
+                    raise InvalidXmlCharacter(i, 'Character %r not allowed in xaml documents' % ch)
         self.data = text
         self.data.reverse()
         self.chars = []
@@ -147,8 +165,10 @@ class PPLCStream:
             line = self.data.pop()
             self.line += 1
         else:
+            self.current_line = None
             return None
         line += '\n'
+        self.current_line = line
         return line
 
     def peek_char(self):
@@ -196,6 +216,7 @@ class PPLCStream:
         self.line -= 1
         line = line.rstrip('\n')
         self.lines.append(line)
+        self.current_line = line
 
 
 # Token and Tokenizer {{{1
@@ -286,11 +307,11 @@ class Tokenizer:
                 self.open_parens -= 1
                 self._consume_ws()
                 if self.data.peek_char() not in ('\n', None):
-                    raise ParseError('line %d: nothing allowed on same line after ")"' % self.data.line)
+                    raise ParseError(self.data.line, 'nothing allowed on same line after ")"')
                 return self.get_token()
         elif ch in '/:\n':
             if self.open_parens:
-                raise ParseError('line %d: unclosed parens' % self.data.line)
+                raise ParseError(self.data.line, 'unclosed parens')
             self.data.get_char()
             self.state.pop()
             if ch == ':':
@@ -299,7 +320,7 @@ class Tokenizer:
                 self.state.append(s.CONTENT)
             return self.get_token()
         # collect the name
-        name, disallow_quotes = self._get_name(extra_terminators='=')
+        name, disallow_quotes = self._get_name()
         # _get_name left ch at the '=', or the next non-ws character
         ch = self.data.peek_char()
         if ch == '=':
@@ -389,7 +410,7 @@ class Tokenizer:
 
     def _get_meta(self):
         self.data.push_line(self.data.get_line()[3:])
-        name, _ = self._get_name(extra_chars='.', )
+        name, _ = self._get_name()
         if name in ('xml', 'xml1.0'):
             name = 'xml', '1.0'
         token = Token(tt.META, name)
@@ -399,10 +420,7 @@ class Tokenizer:
 
     def _get_name(self, extra_chars=(), extra_types=(), extra_terminators=()):
         """
-        gets the next name, defaults to letters, numbers, and '_' only
-        extra_chars should be a sequence of actual extra allowed non-letter characters
-        extra_types should be a sequence of extra unicode character types
-        extra_terminators should be a sequence of extra allowed name terminators
+        gets the next tag or attribute name
         """
         self._consume_ws()
         ch = self.data.get_char()
@@ -419,31 +437,28 @@ class Tokenizer:
             self.data.push_char('=')
             default = True
         else:
-            while 'collecting letters':
-                uni_cat = unicodedata.category(ch)[0]
-                if (uni_cat not in ('L', 'N') + tuple(extra_types) and
-                    ch not in ('_', ) + tuple(extra_chars)
-                    ):
+            while 'collecting characters':
+                if ch in '''!"#$%&'()*+,/;<=>?@[\\]^`{|}~ \n''':
                     break
                 name.append(ch)
                 ch = self.data.get_char()
-            # valid stop chars are ' ', '\n', None, and extra_terminators
             name = ''.join(name)
             if not name:
-                raise ParseError('line %d: null name not allowed' % self.data.line)
-            if ch in ':/\n' or ch in extra_terminators:
-                self.data.push_char(ch)
-            elif ch in '(':
+                raise ParseError(self.data.line, 'null name not allowed:\n\t%s' % self.data.current_line)
+            if ch in '(':
                 self.open_parens += 1
             elif ch in ')':
                 self.open_parens -= 1
                 if self.open_parens < 0:
-                    raise ParseError('mismatched parenthesis on line %s' % self.data.line)
-            elif ch not in (' ', None):
-                raise ParseError('line %d: element name %r followed by invalid char %r' %
-                        (self.data.line, name, ch))
-            # if ch == ' ' or ch in extra_terminators:
-            #     self._consume_ws()
+                    raise ParseError(self.data.line, 'mismatched parenthesis')
+            elif ch == ' ':
+                self._consume_ws()
+            else:
+                self.data.push_char(ch)
+        # verify first character is legal
+        ch = name[0]
+        if ch in'-.' or unicodedata.category(ch)[0] == 'N':
+            raise ParseError(self.data.line, 'tag name cannot start with . - or digit: %r' % name)
         return name, default
 
     def _get_parens(self, line):
@@ -464,30 +479,30 @@ class Tokenizer:
         quote = None
         if ch in ('"', "'", '`'):
             if no_quotes and ch != '`':
-                raise ParseError('out-of-place quote')
+                raise ParseError(self.date.line, 'out-of-place quote')
             quote = ch
             ch = self.data.get_char()
         while 'collecting value':
             if ch is None:
                 if quote:
-                    raise ParseError('unclosed quote while collecting value for %r: %r' % (''.join(value), ch))
+                    raise ParseError(self.date.line, 'unclosed quote while collecting value for %r: %r' % (''.join(value), ch))
                 break
             if ch == quote:
                 # skip past quote and finish
                 ch = self.data.get_char()
                 break
-            elif quote:
+            elif quote and ch != '\\':
                 if ch == '\n':
                     if quote == '`':
-                        raise ParseError('embedded newlines illegal in attribute level python code')
+                        raise ParseError(self.date.line, 'embedded newlines illegal in attribute level python code')
                     ch = ' '
                 value.append(ch)
             elif ch in ('"', "'", '`'):
-                raise ParseError('embedded quote')
+                raise ParseError(self.data.line, 'embedded quote in:\n\t%s' % self.data.current_line)
             elif ch == '\\':
                 ch = self.data.get_char()
                 if ch == '\n':
-                    raise ParseError('newlines cannot be escaped')
+                    raise ParseError(self.date.line, 'newlines cannot be escaped')
                 value.append(ch)
             elif ch in ' )(/:\n':
                 break
@@ -498,12 +513,12 @@ class Tokenizer:
         if ch in ')':
             self.open_parens -= 1
             if self.open_parens < 0:
-                raise ParseError('line %d: unbalanced parentheses' % self.data.line)
+                raise ParseError(self.date.line, 'unbalanced parentheses')
         elif ch in '(':
             self.open_parens += 1
             self._consume_ws(include='\n')
         elif ch not in (' ', '\n', ':', '/', None):
-            raise ParseError('invalid character after value %r' % ''.join(value))
+            raise ParseError(self.date.line, 'invalid character after value %r' % ''.join(value))
         else:
             self.data.push_char(ch)
             self._consume_ws()
@@ -572,7 +587,7 @@ class Tokenizer:
         elif state == s.CONTENT:
             return self._get_content()
         else:
-            raise ParseError('unknown state: %s' % state)
+            raise ParseError(self.date.line, 'unknown state: %s' % state)
 
 class ML:
 
@@ -593,7 +608,7 @@ class ML:
                 found_enc = True
                 enc_value =  value.lower().replace('-', '').strip('"')
                 if enc_value != 'utf8':
-                    raise ParseError('only utf8 is supported (not %r)' % value)
+                    raise ParseError(self.date.line, 'only utf8 is supported (not %r)' % value)
                 self.encoding = enc_value
             self.attrs.append((name, value))
         if not found_enc:
@@ -654,7 +669,7 @@ class Xaml(object):
                     self.ml= ML(output.pop())
                     self.coder = ml_types.get(self.ml.key)
                     if self.coder is None:
-                        raise ParseError('markup language %r not supported' % self.ml.type)
+                        raise ParseError(self.date.line, 'markup language %r not supported' % self.ml.type)
                     self.encoding = self.encoding
                     self.depth.pop()
                     if token.type is tt.DEDENT:
@@ -759,7 +774,7 @@ class Xaml(object):
                     lines = ''.join(prepend) + lines
                     exec(lines, env)
                 else:
-                    raise ParseError('unknown filter: %r' % name)
+                    raise ParseError(self.date.line, 'unknown filter: %r' % name)
             # INDENT
             elif token.type is tt.INDENT:
                 last_token, pending_newline = self._check_for_newline(last_token)
@@ -773,7 +788,7 @@ class Xaml(object):
             # META
             elif token.type is tt.META:
                 if len(self.depth) != 1 or self.depth[0].type != None:
-                    raise ParseError('meta tags (such as %r) cannot be nested' % token.payload)
+                    raise ParseError(self.date.line, 'meta tags (such as %r) cannot be nested' % token.payload)
                 name, value = token.payload
                 if name == 'xml':
                     output.append('<?xml version="%s"' % value)
@@ -788,7 +803,7 @@ class Xaml(object):
                     self.depth.append(token)
             # problem
             else:
-                raise ParseError('unknown token: %r' % token)
+                raise ParseError(self.date.line, 'unknown token: %r' % token)
         return XamlDoc(self.ml, ''.join(output))
 
 
@@ -817,13 +832,28 @@ class ParseError(Exception):
     Used for xaml parse errors
     '''
 
+    line_no = None
+
+    def __init__(self, line_no, message=None):
+        if message is None:
+            Exception.__init__(self, line_no)
+        else:
+            self.line_no = line_no
+            Exception.__init__(self, 'line %s: %s' % (line_no, message))
+
+
+class InvalidXmlCharacter(ParseError):
+    '''
+    Used for invalid code points
+    '''
+
+
 def minimal(text):
     cp = {
         '<' : '&lt;',
         '>' : '&gt;',
         '&' : '&amp;',
         '"' : '&#x22;',
-        "'" : '&#x27;',
         }
     result = []
     for ch in text:

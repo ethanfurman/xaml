@@ -2,7 +2,7 @@ from __future__ import unicode_literals
 from unittest import TestCase, main
 from textwrap import dedent
 import xaml
-from xaml import Xaml, PPLCStream, Token, Tokenizer, TokenType, State, ML
+from xaml import Xaml, PPLCStream, Token, Tokenizer, TokenType, State, ML, ParseError
 
 s = State
 tt = TokenType
@@ -491,6 +491,9 @@ class TestPPLCStream(TestCase):
 class TestTokenizer(TestCase):
 
     maxDiff = None
+
+    def test_bad_tag(self):
+        self.assertRaises(ParseError, Xaml, '%7hmm')
 
     def test_parens(self):
         result = list(Tokenizer(
