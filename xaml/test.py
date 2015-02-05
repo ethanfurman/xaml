@@ -20,12 +20,12 @@ class TestXaml(TestCase):
     maxDiff = None
 
     def test_meta_coding(self):
-        result = Xaml('!!! coding: cp1252\n!!! xml'.encode('cp1252')).parse().bytes()
+        result = Xaml('!!! coding: cp1252\n!!! xml'.encode('cp1252')).document.bytes()
         expected = '<?xml version="1.0" encoding="utf-8"?>\n'.encode('utf-8')
         self.assertEqual(expected, result)
 
     def test_xmlify_str_attr(self):
-        result = Xaml("%Test colors='blue:days_left<=days_warn and days_left>0;red:days_left<=0;'").parse().string()
+        result = Xaml("%Test colors='blue:days_left<=days_warn and days_left>0;red:days_left<=0;'").document.string()
         expected = '<Test colors="blue:days_left&lt;=days_warn and days_left&gt;0;red:days_left&lt;=0;"/>'
         self.assertEqual(expected, result)
 
@@ -49,7 +49,7 @@ class TestXaml(TestCase):
             '''    </data>\n'''
             '''</opentag>'''
             ).encode('utf-8')
-        for exp_line, xaml_line in zip(expected.split(b'\n'), Xaml(input).parse().bytes().split(b'\n')):
+        for exp_line, xaml_line in zip(expected.split(b'\n'), Xaml(input).document.bytes().split(b'\n')):
             self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
 
     def test_nested_comments(self):
@@ -112,7 +112,7 @@ class TestXaml(TestCase):
             '''    </data>\n'''
             '''</opentag>'''
             )
-        for exp_line, xaml_line in zip(expected.split('\n'), Xaml(input).parse().string().split('\n')):
+        for exp_line, xaml_line in zip(expected.split('\n'), Xaml(input).document.string().split('\n')):
             self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
 
     def test_same_level_comments(self):
@@ -150,7 +150,7 @@ class TestXaml(TestCase):
             '''    </data>\n'''
             '''</opentag>'''
             ).encode('utf-8')
-        for exp_line, xaml_line in zip(expected.split(b'\n'), Xaml(input).parse().bytes().split(b'\n')):
+        for exp_line, xaml_line in zip(expected.split(b'\n'), Xaml(input).document.bytes().split(b'\n')):
             self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
 
     def test_random_content(self):
@@ -176,7 +176,7 @@ class TestXaml(TestCase):
             '''    </data>\n'''
             '''</opentag>'''
             )
-        for exp_line, xaml_line in zip(expected.split('\n'), Xaml(input).parse().string().split('\n')):
+        for exp_line, xaml_line in zip(expected.split('\n'), Xaml(input).document.string().split('\n')):
             self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
 
     def test_random_content_with_newlines_after(self):
@@ -204,7 +204,7 @@ class TestXaml(TestCase):
             '''    </data>\n'''
             '''</opentag>'''
             ).encode('utf-8')
-        for exp_line, xaml_line in zip(expected.split(b'\n'), Xaml(input).parse().bytes().split(b'\n')):
+        for exp_line, xaml_line in zip(expected.split(b'\n'), Xaml(input).document.bytes().split(b'\n')):
             self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
 
     def test_random_content_with_newlines_around(self):
@@ -234,7 +234,7 @@ class TestXaml(TestCase):
             '''    </data>\n'''
             '''</opentag>'''
             )
-        for exp_line, xaml_line in zip(expected.split('\n'), Xaml(input).parse().string().split('\n')):
+        for exp_line, xaml_line in zip(expected.split('\n'), Xaml(input).document.string().split('\n')):
             self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
 
     def test_random_content_with_newlines_before(self):
@@ -262,7 +262,7 @@ class TestXaml(TestCase):
             '''    </data>\n'''
             '''</opentag>'''
             ).encode('utf-8')
-        for exp_line, xaml_line in zip(expected.split(b'\n'), Xaml(input).parse().bytes().split(b'\n')):
+        for exp_line, xaml_line in zip(expected.split(b'\n'), Xaml(input).document.bytes().split(b'\n')):
             self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
 
     def test_simple(self):
@@ -278,7 +278,7 @@ class TestXaml(TestCase):
             '''    </level_one>\n'''
             '''</opentag>'''
             )
-        for exp_line, xaml_line in zip(expected.split('\n'), Xaml(input).parse().string().split('\n')):
+        for exp_line, xaml_line in zip(expected.split('\n'), Xaml(input).document.string().split('\n')):
             self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
 
     def test_nested(self):
@@ -317,11 +317,11 @@ class TestXaml(TestCase):
             '''    </record>\n'''
             '''</openerp>'''
             ).encode('utf-8')
-        for exp_line, xaml_line in zip(expected.split(b'\n'), Xaml(input).parse().bytes().split(b'\n')):
+        for exp_line, xaml_line in zip(expected.split(b'\n'), Xaml(input).document.bytes().split(b'\n')):
             self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
 
     def test_meta_closing(self):
-        result = Xaml('!!! xml1.0').parse().bytes()
+        result = Xaml('!!! xml1.0').document.bytes()
         self.assertEqual(
                 '<?xml version="1.0" encoding="utf-8"?>\n'.encode('utf-8'),
                 result,
@@ -329,14 +329,14 @@ class TestXaml(TestCase):
 
     # TODO: enable this test once encodings besides utf-8 are supported
     # def test_meta_xml_non_utf_encoding(self):
-    #     result = Xaml('!!! xml1.0 encoding="cp1252"').parse().string()
+    #     result = Xaml('!!! xml1.0 encoding="cp1252"').document.string()
     #     self.assertEqual(
     #             '<?xml version="1.0" encoding="cp1252"?>\n'.encode('utf-8'),
     #             result,
     #             )
 
     def test_meta_xml_utf_encoding(self):
-        doc = Xaml('!!! xml1.0 encoding="utf-8"').parse()
+        doc = Xaml('!!! xml1.0 encoding="utf-8"').document
         self.assertEqual(
                 '<?xml version="1.0" encoding="utf-8"?>\n'.encode('utf-8'),
                 doc.bytes(),
@@ -347,7 +347,7 @@ class TestXaml(TestCase):
                 )
 
     def test_element_closing(self):
-        result = Xaml('%opentag').parse().bytes()
+        result = Xaml('%opentag').document.bytes()
         self.assertEqual(
                 '<opentag/>'.encode('utf-8'),
                 result,
@@ -389,7 +389,7 @@ class TestXaml(TestCase):
             '''    </data>\n'''
             '''</openerp>'''
             )
-        for exp_line, xaml_line in zip(expected.split('\n'), Xaml(input).parse().string().split('\n')):
+        for exp_line, xaml_line in zip(expected.split('\n'), Xaml(input).document.string().split('\n')):
             self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
 
     def test_filter_2(self):
@@ -442,7 +442,7 @@ class TestXaml(TestCase):
             '''    </data>\n'''
             '''</openerp>'''
             ).encode('utf-8')
-        for exp_line, xaml_line in zip(expected.split(b'\n'), Xaml(input).parse().bytes().split(b'\n')):
+        for exp_line, xaml_line in zip(expected.split(b'\n'), Xaml(input).document.bytes().split(b'\n')):
             self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
 
     def test_dynamic(self):
@@ -462,7 +462,7 @@ class TestXaml(TestCase):
             '''    </an_ordered_list>''',
             '''</the_page>''',
             ])
-        for exp_line, xaml_line in zip(expected.split('\n'), Xaml(input).parse().string(order=order).split('\n')):
+        for exp_line, xaml_line in zip(expected.split('\n'), Xaml(input).document.string(order=order).split('\n')):
             self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
 
 

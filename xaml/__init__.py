@@ -644,29 +644,34 @@ class Xaml(object):
 
     def __init__(self, text):
         # indents tracks valid indentation levels
-        self.tokens = list(Tokenizer(text))
-        self.depth = [Token(None)]
-        self.indents = 1
-        self.coder = minimal
+        self._tokens = list(Tokenizer(text))
+        self._depth = [Token(None)]
+        self._indents = Indent(level=1)
+        self._coder = minimal
         self.ml = None
-        self.encoding = default_encoding
+        self._encoding = default_encoding
+        self._document = self._parse()
+
+    @property
+    def document(self):
+        return self._document
 
     def _append_newline(self):
-        if self.depth[-1].type not in (tt.INDENT, tt.BLANK_LINE):
-            self.depth.append(Token(tt.BLANK_LINE))
+        if self._depth[-1].type not in (tt.INDENT, tt.BLANK_LINE):
+            self._depth.append(Token(tt.BLANK_LINE))
 
     def _check_for_newline(self, token):
         if token.type is not tt.BLANK_LINE:
             return token, False
         else:
-            return self.depth[-2], self.depth.pop()
+            return self._depth[-2], self._depth.pop()
 
-    def parse(self, **env):
+    def _parse(self):
         encoding_specified = False
         output = []
         attrs = {}
-        for token in self.tokens:
-            last_token = self.depth and self.depth[-1] or Token(None)
+        for token in self._tokens:
+            last_token = self._depth and self._depth[-1] or Token(None)
             if last_token.type is tt.META:
                 if token.type is tt.STR_ATTR:
                     name, value = token.payload
@@ -678,27 +683,26 @@ class Xaml(object):
                 elif token.type not in (tt.CODE_ATTR, tt.STR_DATA, tt.CODE_DATA):
                     output[-1] += '?>\n'
                     self.ml= ML(output.pop())
-                    self.coder = ml_types.get(self.ml.key)
-                    if self.coder is None:
+                    self._coder = ml_types.get(self.ml.key)
+                    if self._coder is None:
                         raise ParseError(self.date.line, 'markup language %r not supported' % self.ml.type)
-                    self.encoding = self.encoding
-                    self.depth.pop()
+                    self._depth.pop()
                     if token.type is tt.DEDENT:
                         break
                 else:
                     raise SystemExit('Token %s not allowed in/after META token' % token)
             elif last_token.type is tt.COMMENT:
                 if token.type is not tt.COMMENT:
-                    output.append('    ' * self.indents + '        )\n')
-                    self.depth.pop()
-                    last_token = self.depth[-1]
+                    output.append(self._indents.blanks + '        )\n')
+                    self._depth.pop()
+                    last_token = self._depth[-1]
             if token.type in (tt.CODE_ATTR, tt.STR_ATTR):
                 assert last_token.type is tt.ELEMENT, 'the tokenizer is busted'
                 name, value = token.payload
                 if token.type is tt.CODE_ATTR:
                     attrs[name] = value
                 if token.type is tt.STR_ATTR and token.make_safe:
-                    value = self.coder(value)
+                    value = self._coder(value)
                     attrs[name] = repr(value)
             # COMMENT
             elif token.type is tt.COMMENT:
@@ -706,15 +710,15 @@ class Xaml(object):
                 if last_token.type is tt.ELEMENT:
                     output[-1] += ', attrs={%s})\n' % ', '.join(['%r:%s' % (k, v) for k, v in attrs.items()])
                     attrs = {}
-                    self.depth.pop()
+                    self._depth.pop()
                     if pending_newline:
                         self._append_newline()
                 if pending_newline:
-                    output.append('    ' * self.indents + 'Blank()\n')
-                if self.depth[-1].type is not tt.COMMENT:
-                    self.depth.append(token)
-                    output.append('    ' * self.indents + 'Comment(\n')
-                output.append('    ' * self.indents + '        %r,\n' % token.payload)
+                    output.append(self._indents.blanks + 'Blank()\n')
+                if self._depth[-1].type is not tt.COMMENT:
+                    self._depth.append(token)
+                    output.append(self._indents.blanks + 'Comment(\n')
+                output.append(self._indents.blanks + '        %r,\n' % token.payload)
             # CONTENT
             elif token.type is tt.CONTENT:
                 last_token, pending_newline = self._check_for_newline(last_token)
@@ -722,11 +726,11 @@ class Xaml(object):
                     # close previous element
                     output[-1] += ', attrs={%s})\n' % ', '.join(['%r:%s' % (k, v) for k, v in attrs.items()])
                     attrs = {}
-                    self.depth.pop()
+                    self._depth.pop()
                 if pending_newline:
-                    output.append('    ' * self.indents + 'Blank()\n')
+                    output.append(self._indents.blanks + 'Blank()\n')
                     self._append_newline()
-                output.append('    ' * self.indents + 'Content(%r)\n' % token.payload)
+                output.append(self._indents.blanks + 'Content(%r)\n' % token.payload)
             # DATA
             elif token.type in (tt.CODE_DATA, tt.STR_DATA):
                 string = ', attrs={%s})' % ', '.join(['%r:%s' % (k, v) for k, v in attrs.items()])
@@ -734,12 +738,11 @@ class Xaml(object):
                 value ,= token.payload
                 if token.type is tt.CODE_DATA:
                     pass
-                    # value = eval(value, env)
                 if token.type is tt.STR_DATA:
                     if token.make_safe:
-                        value = self.coder(value)
+                        value = self._coder(value)
                     value = repr(value)
-                token = self.depth.pop()
+                token = self._depth.pop()
                 string += '(%s)\n' % value
                 output[-1] += string
             # DEDENT
@@ -747,26 +750,26 @@ class Xaml(object):
                 last_token, pending_newline = self._check_for_newline(last_token)
                 # need to close the immediately preceeding tag, and the
                 # tags dedented to
-                self.indents -= 1
+                self._indents.dec()
                 if last_token.type is tt.ELEMENT:
                     output[-1] += ', attrs={%s})\n' % ', '.join(['%r:%s' % (k, v) for k, v in attrs.items()])
                     attrs = {}
-                    self.depth.pop()
-                should_be_indent = self.depth.pop()
+                    self._depth.pop()
+                should_be_indent = self._depth.pop()
                 assert should_be_indent.type in (tt.INDENT, None), 'something broke: %s\n%s' % (should_be_indent, ''.join(output))
                 try:
-                    last_token = self.depth[-1]
+                    last_token = self._depth[-1]
                 except IndexError:
                     # all done!
                     break
                 if last_token.type is tt.BLANK_LINE:
                     output.append('\n')
-                    self.depth.pop()
-                    last_token = self.depth[-1]
+                    self._depth.pop()
+                    last_token = self._depth[-1]
                 if last_token.type is tt.ELEMENT:
-                    closing_token = self.depth.pop()
+                    closing_token = self._depth.pop()
                 if pending_newline:
-                    self.depth.append(pending_newline)
+                    self._depth.append(pending_newline)
             # ELEMENT
             elif token.type is tt.ELEMENT:
                 last_token, pending_newline = self._check_for_newline(last_token)
@@ -774,19 +777,18 @@ class Xaml(object):
                     # close previous element
                     output[-1] += ', attrs={%s})\n' % ', '.join(['%r:%s' % (k, v) for k, v in attrs.items()])
                     attrs = {}
-                    self.depth.pop()
+                    self._depth.pop()
                 if pending_newline:
-                    output.append('    ' * self.indents + 'Blank()\n')
+                    output.append(self._indents.blanks + 'Blank()\n')
                     self._append_newline()
-                    # self.indents += 1
-                output.append('    ' * self.indents)
+                output.append(self._indents.blanks)
                 output.append('Element(%r' % token.payload)
-                self.depth.append(token)
+                self._depth.append(token)
             # FILTER
             elif token.type is tt.FILTER:
                 name, lines = token.payload
                 if name == 'python':
-                    blank = '    ' * self.indents
+                    blank = self._indents.blanks
                     output.append(blank + 'if 1:\n')
                     for line in lines.split('\n'):
                         output.append(blank + line + '\n')
@@ -800,25 +802,25 @@ class Xaml(object):
                     output[-1] = 'with %s, attrs={%s}):\n' % (output[-1], ', '.join(['%r:%s' % (k, v) for k, v in attrs.items()]))
                     attrs = {}
                     with_ele = True
-                self.indents += 1
+                self._indents.inc()
                 if pending_newline:
                     if with_ele:
-                        output.append('    ' * self.indents + 'with Blank(mirror=True):\n')
-                        self.indents += 1
+                        output.append(self._indents.blanks + 'with Blank(mirror=True):\n')
+                        self._indents.inc()
                     else:
-                        output.append('    ' * self.indents + 'Blank()\n')
+                        output.append(self._indents.blanks + 'Blank()\n')
                     self._append_newline()
-                self.depth.append(token)
+                self._depth.append(token)
             # META
             elif token.type is tt.META:
-                if len(self.depth) != 1 or self.depth[0].type != None:
+                if len(self._depth) != 1 or self._depth[0].type != None:
                     raise ParseError(self.date.line, 'meta tags (such as %r) cannot be nested' % token.payload)
                 name, value = token.payload
                 if name == 'xml':
                     output.append('<?xml version="%s"' % value)
                 else:
                     raise SystemExit('unknown META: %r' % ((name, value)))
-                self.depth.append(token)
+                self._depth.append(token)
             # PYTHON
             elif token.type is tt.PYTHON:
                 last_token, pending_newline = self._check_for_newline(last_token)
@@ -826,18 +828,17 @@ class Xaml(object):
                     # close previous element
                     output[-1] += ', attrs={%s})\n' % ', '.join(['%r:%s' % (k, v) for k, v in attrs.items()])
                     attrs = {}
-                    self.depth.pop()
+                    self._depth.pop()
                 if pending_newline:
-                    output.append('    ' * self.indents + 'Blank()\n')
+                    output.append(self._indents.blanks + 'Blank()\n')
                     self._append_newline()
-                    # self.indents += 1
-                output.append('    ' * self.indents + '%s\n' % token.payload)
+                output.append(self._indents.blanks + '%s\n' % token.payload)
             # BLANK_LINE
             elif token.type is tt.BLANK_LINE:
                 if last_token.type is tt.BLANK_LINE:
                     continue
                 else:
-                    self.depth.append(token)
+                    self._depth.append(token)
             # problem
             else:
                 raise ParseError(self.date.line, 'unknown token: %r' % token)
@@ -890,16 +891,7 @@ class Xaml(object):
                 """            indent.dec()\n"""
                 """            output.append('%s</%s>' % (indent.blanks, self.tag))\n"""
                 """\n"""
-                """    class Indent:\n""",
-                """        indent = 0\n""",
-                """        def inc(self):\n""",
-                """            self.indent += 1\n""",
-                """        def dec(self):\n""",
-                """            self.indent -= 1\n""",
-                """        @property\n""",
-                """        def blanks(self):\n""",
-                """            return '    ' * self.indent\n""",
-                """    indent = Indent()\n""",
+                """    indent = Indent()\n"""
                 """\n"""
                 """\n"""
                 ]
@@ -936,6 +928,21 @@ class XamlDoc:
         return (self.ml and self.ml.bytes() or b'') + text.encode(self.encoding)
 
 
+class Indent:
+
+    def __init__(self, blank='    ', level=0):
+        self.blank = blank
+        self.indent = level
+
+    def inc(self):
+        self.indent += 1
+
+    def dec(self):
+        self.indent -= 1
+
+    @property
+    def blanks(self):
+        return self.blank * self.indent
 
 
 class ParseError(Exception):
