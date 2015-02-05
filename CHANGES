@@ -1,3 +1,9 @@
+0.3.01
+======
+
+remove Xaml.parse() and add Xaml.document (what .parse() used to return)
+
+
 0.3.00
 ======
 
