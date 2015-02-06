@@ -642,7 +642,7 @@ class ML:
 # xaml itself {{{1
 class Xaml(object):
 
-    def __init__(self, text):
+    def __init__(self, text, _parse=True, _compile=True):
         # indents tracks valid indentation levels
         self._tokens = list(Tokenizer(text))
         self._depth = [Token(None)]
@@ -650,14 +650,17 @@ class Xaml(object):
         self._coder = minimal
         self.ml = None
         self._encoding = default_encoding
-        self._document = self._parse()
+        if _parse:
+            self._document = self._parse(_compile=_compile)
+        else:
+            self._document = None
 
     @property
     def document(self):
         return self._document
 
     def _append_newline(self):
-        if self._depth[-1].type not in (tt.INDENT, tt.BLANK_LINE):
+        if self._depth[-1].type not in (tt.INDENT, tt.BLANK_LINE, None):
             self._depth.append(Token(tt.BLANK_LINE))
 
     def _check_for_newline(self, token):
@@ -666,11 +669,12 @@ class Xaml(object):
         else:
             return self._depth[-2], self._depth.pop()
 
-    def _parse(self):
+    def _parse(self, _parse=True, _compile=True):
         encoding_specified = False
         output = []
         attrs = {}
         for token in self._tokens:
+            # print 'depth:', ','.join(t.type.name for t in self._depth[1:])
             last_token = self._depth and self._depth[-1] or Token(None)
             if last_token.type is tt.META:
                 if token.type is tt.STR_ATTR:
@@ -766,6 +770,7 @@ class Xaml(object):
                     output.append('\n')
                     self._depth.pop()
                     last_token = self._depth[-1]
+                    self._indents.dec()
                 if last_token.type is tt.ELEMENT:
                     closing_token = self._depth.pop()
                 if pending_newline:
@@ -842,75 +847,84 @@ class Xaml(object):
             # problem
             else:
                 raise ParseError(self.date.line, 'unknown token: %r' % token)
+        global_code = [
+                """output = []\n""",
+                """\n""",
+                """class Args:\n""",
+                """    def __init__(self, kwds):\n""",
+                """        for k, v in kwds.items():\n""",
+                """            setattr(self, k, v)\n""",
+                """\n""",
+                """class Blank:\n""",
+                """    def __init__(self, mirror=False):\n""",
+                """        self.mirror = mirror\n""",
+                """        output.append('')\n""",
+                """    def __enter__(self):\n""",
+                """        pass\n""",
+                """    def __exit__(self, *args):\n""",
+                """        if self.mirror:\n""",
+                """            output.append('')\n""",
+                """\n""",
+                """def Comment(*content):\n""",
+                """    output.append('%s<!--' % indent.blanks)\n""",
+                """    for line in content:\n""",
+                """        output.append('%s |  %s' % (indent.blanks, line))\n""",
+                """    output.append('%s-->' % indent.blanks)\n""",
+                """\n""",
+                """def Content(content):\n""",
+                """    output.append('%s%s' % (indent.blanks, content))\n""",
+                """\n""",
+                """class Element:\n""",
+                """    def __init__(self, tag, attrs={}):\n""",
+                """        self.tag = tag\n""",
+                """        attrs = ' '.join(['%s="%s"' % (k, v) for k, v in attrs.items()])\n"""
+                """        if attrs:\n""",
+                """            attrs = ' ' + attrs\n""",
+                """        output.append('%s<%s%s/>' % (indent.blanks, tag, attrs))\n""",
+                """    def __call__(self, content):\n""",
+                """        output[-1] = output[-1][:-2] + '>%s</%s>' % (content, self.tag)\n""",
+                """    def __enter__(self):\n""",
+                """        if output and output[-1] == '':\n""",
+                """            target = -2\n""",
+                """        else:\n""",
+                """            target = -1\n""",
+                """        indent.inc()\n""",
+                """        output[target] = output[target][:-2] + '>'\n""",
+                """    def __exit__(self, *args):\n""",
+                """        indent.dec()\n""",
+                """        output.append('%s</%s>' % (indent.blanks, self.tag))\n""",
+                """\n""",
+                """indent = Indent()\n""",
+                """\n""",
+                ]
         pre_code = [
                 """def generate(**kwds):\n""",
-                """    output = []\n""",
-                """\n"""
-                """    class Args:\n"""
-                """        def __init__(self, kwds):\n"""
-                """            for k, v in kwds.items():\n"""
-                """                setattr(self, k, v)\n"""
-                """    args = Args(kwds)\n"""
-                """\n"""
-                """    class Blank:\n"""
-                """        def __init__(self, mirror=False):\n"""
-                """            self.mirror = mirror\n"""
-                """            output.append('')\n"""
-                """        def __enter__(self):\n"""
-                """            pass\n"""
-                """        def __exit__(self, *args):\n"""
-                """            if self.mirror:\n"""
-                """                output.append('')\n"""
-                """\n"""
-                """    def Comment(*content):\n"""
-                """        output.append('%s<!--' % indent.blanks)\n"""
-                """        for line in content:\n"""
-                """            output.append('%s |  %s' % (indent.blanks, line))\n"""
-                """        output.append('%s-->' % indent.blanks)\n"""
-                """\n"""
-                """    def Content(content):\n"""
-                """        output.append('%s%s' % (indent.blanks, content))\n"""
-                """\n"""
-                """    class Element:\n""",
-                """        def __init__(self, tag, attrs={}):\n""",
-                """            self.tag = tag\n""",
-                """            attrs = ' '.join(['%s="%s"' % (k, v) for k, v in attrs.items()])\n"""
-                """            if attrs:\n""",
-                """                attrs = ' ' + attrs\n""",
-                """            output.append('%s<%s%s/>' % (indent.blanks, tag, attrs))\n"""
-                """        def __call__(self, content):\n"""
-                """            output[-1] = output[-1][:-2] + '>%s</%s>' % (content, self.tag)\n"""
-                """        def __enter__(self):\n"""
-                """            if output and output[-1] == '':\n"""
-                """                target = -2\n"""
-                """            else:\n"""
-                """                target = -1\n"""
-                """            indent.inc()\n"""
-                """            output[target] = output[target][:-2] + '>'\n"""
-                """        def __exit__(self, *args):\n"""
-                """            indent.dec()\n"""
-                """            output.append('%s</%s>' % (indent.blanks, self.tag))\n"""
-                """\n"""
-                """    indent = Indent()\n"""
-                """\n"""
-                """\n"""
+                """    args = Args(kwds)\n""",
+                """\n""",
                 ]
         post_code = [
-                """\n"""
+                """\n""",
                 # """    print '\\n\\n'\n"""
                 # """    print '\\n'.join(output)\n"""
                 """    return '\\n'.join(output)""",
                 ]
         # print ''.join(pre_code+output+post_code)
-        exec(''.join(pre_code+output+post_code), globals())
-        return XamlDoc(self.ml, generate)
+        code = ''.join(pre_code+output+post_code)
+        glbls = globals().copy()
+        exec(''.join(global_code), glbls)
+        if _compile:
+            exec(code, glbls)
+            return XamlDoc(self.ml, code, glbls['generate'])
+        else:
+            return XamlDoc(self.ml, code, None)
 
 
 class XamlDoc:
 
-    def __init__(self, ml, code):
+    def __init__(self, ml, code, func):
         self.ml = ml
-        self.code = code
+        self._code = code
+        self._func = func
         if self.ml is not None:
             self.encoding = ml.encoding
         else:
@@ -919,12 +933,16 @@ class XamlDoc:
     def __repr__(self):
         return '<%s document>' % (self.ml and self.ml.type or 'generic ml')
 
+    @property
+    def code(self):
+        return self._code
+
     def string(self, **kwds):
-        text = self.code(**kwds)
+        text = self._func(**kwds)
         return str(self.ml or '') + text
 
     def bytes(self, **kwds):
-        text = self.code(**kwds)
+        text = self._func(**kwds)
         return (self.ml and self.ml.bytes() or b'') + text.encode(self.encoding)
 
 

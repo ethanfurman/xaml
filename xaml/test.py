@@ -115,6 +115,40 @@ class TestXaml(TestCase):
         for exp_line, xaml_line in zip(expected.split('\n'), Xaml(input).document.string().split('\n')):
             self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
 
+    def test_nesting_blanks(self):
+        input = (
+            '''%opentag\n'''
+            '''    %data\n'''
+            '''\n'''
+            '''        %record view='ir.ui.view' #testing\n'''
+            '''            @name blah='Testing'\n'''
+            '''                %form\n'''
+            '''                    %group\n'''
+            '''    %data noupdate='1'\n'''
+            '''         %record view='ir.ui.view'\n'''
+            )
+        expected = (
+            '''<opentag>\n'''
+            '''    <data>\n'''
+            '''\n'''
+            '''        <record view="ir.ui.view" id="testing">\n'''
+            '''            <field name="name" blah="Testing">\n'''
+            '''                <form>\n'''
+            '''                    <group/>\n'''
+            '''                </form>\n'''
+            '''            </field>\n'''
+            '''        </record>\n'''
+            '''\n'''
+            '''    </data>\n'''
+            '''\n'''
+            '''    <data noupdate="1">\n'''
+            '''        <record view="ir.ui.view"/>\n'''
+            '''    </data>\n'''
+            '''</opentag>'''
+            ).encode('utf-8')
+        for exp_line, xaml_line in zip(expected.split(b'\n'), Xaml(input).document.bytes().split(b'\n')):
+            self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
+
     def test_same_level_comments(self):
         input = (
             '''%opentag\n'''

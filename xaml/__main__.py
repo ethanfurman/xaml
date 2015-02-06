@@ -21,7 +21,7 @@ def xaml(file, dest, same_dir):
     if not same_dir:
         dest = dest.filename
     with open(file) as source:
-        xaml_doc = Xaml(source.read()).parse()
+        xaml_doc = Xaml(source.read()).document
     if display:
         print(xaml_doc.string())
     else:
@@ -33,8 +33,15 @@ def xaml(file, dest, same_dir):
         )
 def tokens(file):
     with open(file) as source:
-        result = Xaml(source.read())
-    for token in result.tokens:
-        print token
+        result = Xaml(source.read(), _compile=False)
+    for token in result._tokens:
+        print(token)
+
+@Command(file=('xaml file to convert', REQUIRED, 'f', Path),
+        )
+def code(file):
+    with open(file) as source:
+        result = Xaml(source.read(), _compile=False)
+    print(result.document.code)
 
 Main()
