@@ -5,4 +5,6 @@ xaml/__init__.py
 xaml/__main__.py
 xaml/test.py
 setup.py
+CHANGES
+LICENSE
 README
