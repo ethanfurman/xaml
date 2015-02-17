@@ -569,10 +569,10 @@ class Tokenizer:
                     self.data.push_line(line[last_indent:])
                     self.last_token = self._get_content()
                     return self.last_token
-                # elif state is s.CONTENT:
-                #     self.state.pop()
-                #     state = self.state[-1]
-                elif not (line[:last_indent].lstrip() == '' and line[last_indent] != ' '):
+                elif state is s.CONTENT:
+                    self.state.pop()
+                    state = self.state[-1]
+                if not (line[:last_indent].lstrip() == '' and line[last_indent] != ' '):
                     self.state.append(s.DENTING)
                     self.last_token =  self._get_denting()
                     return self.last_token

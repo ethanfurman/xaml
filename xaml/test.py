@@ -211,6 +211,33 @@ class TestXaml(TestCase):
         for exp_line, xaml_line in zip(expected.split('\n'), Xaml(input).document.string().split('\n')):
             self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
 
+    def test_after_indented_content(self):        
+        input = (
+            '''@script\n'''
+            '''    lines = text.strip().split('\\n')\n'''
+            '''    while lines:\n'''
+            '''        segment, lines = lines[:12], lines[12:]\n'''
+            '''        _, hash, ip, _ = segment[0].split()\n'''
+            '''        ascii_art = '\\n'.join(segment[1:])\n'''
+            '''        result[ip] = '%s\\n\\n%s' % (hash, ascii_art)\n'''
+            '''\n'''
+            '''@something_else\n'''
+            )
+        expected = (
+            '''<field name="script">\n'''
+            '''    lines = text.strip().split('\\n')\n'''
+            '''    while lines:\n'''
+            '''        segment, lines = lines[:12], lines[12:]\n'''
+            '''        _, hash, ip, _ = segment[0].split()\n'''
+            '''        ascii_art = '\\n'.join(segment[1:])\n'''
+            '''        result[ip] = '%s\\n\\n%s' % (hash, ascii_art)\n'''
+            '''</field>\n'''
+            '''\n'''
+            '''<field name="something_else"/>\n'''
+            )
+        for exp_line, xaml_line in zip(expected.split('\n'), Xaml(input).document.string().split('\n')):
+            self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
+
 
 
     def test_random_content(self):
