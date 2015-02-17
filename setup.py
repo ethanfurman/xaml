@@ -7,20 +7,27 @@ xaml -- XML Abstract Markup Language
 
 an easier way for humans to write xml
 
-if a line starts with any xaml component ( % @ . # $ ) that line represents an xml element
+if a line starts with any xaml component ( % @ . # $ ) that line represents
+an xml element::
+
   - an element continues until eol, or an unquoted :
   - an element can be continued to the next line(s) using unquoted parens
 
-elif a line starts with a ":" it is specifying how the following lines should be interpreted:
-  - :python -> python code
+elif a line starts with a ":" it is specifying how the following lines should
+be interpreted::
+
   - :markdown -> markdown text (not implemented)
   - :css -> css styles (not implemented)
 
-elif a line starts with // it is a comment, and will be converted into an xml comment
+elif a line starts with // it is a comment, and will be converted into an
+xml comment
 
-else the line represents the content of the xml element
+elif a line starts with a "-" it is Python code that will be run to help
+generate the final xml output
 
-xaml components
+else the line represents the content of an xml element
+
+xaml components::
 
   - % -> element name
   - @ -> name attribute
@@ -49,7 +56,7 @@ if sys.version_info < (3, 4):
     requirements.append('enum34')
 
 setup( name='xaml',
-       version= '0.3.03',
+       version= '0.3.04',
        license='BSD License',
        description='XML Abstract Markup Language',
        long_description=long_desc,
