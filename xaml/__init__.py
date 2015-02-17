@@ -270,6 +270,7 @@ class Tokenizer:
         self.state = [s.NORMAL]
         self.indents = [0]
         self.open_parens = 0
+        self.last_token = None
 
     def __next__(self):
         res = self.get_token()
@@ -287,10 +288,11 @@ class Tokenizer:
             while self.data.peek_char() in ws:
                 self.data.get_char()
         else:
-            chars = list(reversed(list(line)))
-            while chars[-1] in ws:
-                chars.pop()
-            line = ''.join(reversed(chars))
+            if line:
+                chars = list(reversed(list(line)))
+                while chars[-1] in ws:
+                    chars.pop()
+                line = ''.join(reversed(chars))
             return line
 
     def _get_attribute(self, default=False):
@@ -317,6 +319,8 @@ class Tokenizer:
             self.data.get_char()
             self.state.pop()
             if ch == ':':
+                if not self.data.peek_line().strip():
+                    raise ParseError(self.data.line, 'nothing after :')
                 self.state.append(s.DATA)
             elif ch == '/':
                 self.state.append(s.CONTENT)
@@ -343,7 +347,7 @@ class Tokenizer:
         return Token(tt.COMMENT, line)
 
     def _get_content(self):
-        line = self.data.get_line().strip()
+        line = self.data.get_line().rstrip()
         return Token(tt.CONTENT, line, make_safe=True)
 
     def _get_data(self):
@@ -354,7 +358,7 @@ class Tokenizer:
             make_safe = False
             data_type = tt.CODE_DATA
             line = line[2:]
-        elif line[0] == '=':
+        elif line[0:1] == '=':
             data_type = tt.CODE_DATA
             line = line[1:]
         elif line[:2] == '&=':
@@ -548,7 +552,7 @@ class Tokenizer:
 
     def get_token(self):
         state = self.state[-1]
-        if state == s.NORMAL:
+        if state in (s.NORMAL, s.CONTENT):
             # looking for next whatever
             while 'nothing found yet...':
                 line = self.data.peek_line()
@@ -556,13 +560,22 @@ class Tokenizer:
                     return self._wind_down()
                 if not line.strip():
                     self.data.get_line()
-                    return Token(tt.BLANK_LINE)
-                    # continue
+                    self.last_token = Token(tt.BLANK_LINE)
+                    return self.last_token
                 # found something, check if indentation has changed
                 last_indent = self.indents[-1]
-                if not (line[:last_indent].lstrip() == '' and line[last_indent] != ' '):
+                if state is s.CONTENT and line[:last_indent].strip() == '':
+                    line = self.data.get_line()
+                    self.data.push_line(line[last_indent:])
+                    self.last_token = self._get_content()
+                    return self.last_token
+                # elif state is s.CONTENT:
+                #     self.state.pop()
+                #     state = self.state[-1]
+                elif not (line[:last_indent].lstrip() == '' and line[last_indent] != ' '):
                     self.state.append(s.DENTING)
-                    return self._get_denting()
+                    self.last_token =  self._get_denting()
+                    return self.last_token
                 else:
                     # discard white space
                     line = self.data.get_line().lstrip()
@@ -571,31 +584,40 @@ class Tokenizer:
                 if ch == '%':
                     self.state.append(s.ELEMENT)
                     self.data.get_char()
-                    return self._get_element()
+                    self.last_token = self._get_element()
+                    return self.last_token
                 elif ch in '@#.$':
                     self.state.append(s.ELEMENT)
-                    return self._get_element(default=True)
+                    self.last_token = self._get_element(default=True)
+                    return self.last_token
                 elif line[:2] == '//':
-                    return self._get_comment()
+                    self.last_token = self._get_comment()
+                    return self.last_token
                 elif line[:3] == '!!!':
                     self.state.append(tt.META)
-                    return self._get_meta()
+                    self.last_token = self._get_meta()
+                    return self.last_token
                 elif ch == ':':
                     self.state.append(s.FILTER)
                     self.data.get_char()
-                    return self._get_filter()
+                    self.last_token = self._get_filter()
+                    return self.last_token
                 elif ch == '-':
                     self.data.get_char()
-                    return self._get_python(self.data.get_line())
+                    self.last_token = self._get_python(self.data.get_line())
+                    return self.last_token
                 else:
                     #must be random content
-                    return self._get_content()
+                    if self.last_token.type is tt.INDENT:
+                        self.state.append(s.CONTENT)
+                    self.last_token = self._get_content()
+                    return self.last_token
         elif state == s.ELEMENT:
-            return self._get_attribute()
+            self.last_token = self._get_attribute()
+            return self.last_token
         elif state == s.DATA:
-            return self._get_data()
-        elif state == s.CONTENT:
-            return self._get_content()
+            self.last_token = self._get_data()
+            return self.last_token
         else:
             raise ParseError(self.date.line, 'unknown state: %s' % state)
 
@@ -701,7 +723,7 @@ class Xaml(object):
                     self._depth.pop()
                     last_token = self._depth[-1]
             if token.type in (tt.CODE_ATTR, tt.STR_ATTR):
-                assert last_token.type is tt.ELEMENT, 'the tokenizer is busted'
+                assert last_token.type is tt.ELEMENT, 'the tokenizer is busted (ATTR and last is %r [current: %r])' % (last_token, token)
                 name, value = token.payload
                 if token.type is tt.CODE_ATTR:
                     attrs[name] = value

@@ -124,6 +124,7 @@ class TestXaml(TestCase):
             '''            @name blah='Testing'\n'''
             '''                %form\n'''
             '''                    %group\n'''
+            '''\n'''
             '''    %data noupdate='1'\n'''
             '''         %record view='ir.ui.view'\n'''
             )
@@ -186,6 +187,31 @@ class TestXaml(TestCase):
             ).encode('utf-8')
         for exp_line, xaml_line in zip(expected.split(b'\n'), Xaml(input).document.bytes().split(b'\n')):
             self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
+
+    def test_indented_content(self):        
+        input = (
+            '''@script\n'''
+            '''    lines = text.strip().split('\\n')\n'''
+            '''    while lines:\n'''
+            '''        segment, lines = lines[:12], lines[12:]\n'''
+            '''        _, hash, ip, _ = segment[0].split()\n'''
+            '''        ascii_art = '\\n'.join(segment[1:])\n'''
+            '''        result[ip] = '%s\\n\\n%s' % (hash, ascii_art)\n'''
+            )
+        expected = (
+            '''<field name="script">\n'''
+            '''    lines = text.strip().split('\\n')\n'''
+            '''    while lines:\n'''
+            '''        segment, lines = lines[:12], lines[12:]\n'''
+            '''        _, hash, ip, _ = segment[0].split()\n'''
+            '''        ascii_art = '\\n'.join(segment[1:])\n'''
+            '''        result[ip] = '%s\\n\\n%s' % (hash, ascii_art)\n'''
+            '''</field>\n'''
+            )
+        for exp_line, xaml_line in zip(expected.split('\n'), Xaml(input).document.string().split('\n')):
+            self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
+
+
 
     def test_random_content(self):
         input = (
@@ -557,6 +583,12 @@ class TestPPLCStream(TestCase):
 class TestTokenizer(TestCase):
 
     maxDiff = None
+
+    def test_bad_data_on_tag(self):
+        self.assertRaises(ParseError, Xaml, '%record :')
+
+    def test_bad_data_on_attribute(self):
+        self.assertRaises(ParseError, Xaml, '@record:')
 
     def test_bad_tag(self):
         self.assertRaises(ParseError, Xaml, '%7hmm')
