@@ -8,6 +8,7 @@ from __future__ import unicode_literals
 from enum import Enum
 import re
 import sys
+import textwrap
 import unicodedata
 
 __all__ = ['Xaml', ]
@@ -270,7 +271,7 @@ class Tokenizer:
         self.state = [s.NORMAL]
         self.indents = [0]
         self.open_parens = 0
-        self.last_token = None
+        self.last_token = Token(None)
 
     def __next__(self):
         res = self.get_token()
@@ -408,6 +409,8 @@ class Tokenizer:
         lines = [line]
         while 'more lines in filter':
             line = self.data.get_line()
+            if line is None:
+                break
             ws = len(line) - len(line.lstrip(' '))
             if ws < leading:
                 self.data.push_line(line)
@@ -756,7 +759,8 @@ class Xaml(object):
                 if pending_newline:
                     output.append(self._indents.blanks + 'Blank()\n')
                     self._append_newline()
-                output.append(self._indents.blanks + 'Content(%r)\n' % token.payload)
+                value = token.payload[0]
+                output.append(self._indents.blanks + 'Content(%r)\n' % self._coder(value))
             # DATA
             elif token.type in (tt.CODE_DATA, tt.STR_DATA):
                 string = ', attrs={%s})' % ', '.join(['%r:%s' % (k, v) for k, v in attrs.items()])
@@ -816,9 +820,10 @@ class Xaml(object):
                 name, lines = token.payload
                 if name == 'python':
                     blank = self._indents.blanks
-                    output.append(blank + 'if 1:\n')
-                    for line in lines.split('\n'):
-                        output.append(blank + line + '\n')
+                    output.append(blank + 'CData(\n')
+                    for line in textwrap.dedent(lines).strip().split('\n'):
+                        output.append(blank + '    %r,\n' % line)
+                    output.append(blank + ')\n')
                 else:
                     raise ParseError(self.date.line, 'unknown filter: %r' % name)
             # INDENT
@@ -886,6 +891,12 @@ class Xaml(object):
                 """    def __exit__(self, *args):\n""",
                 """        if self.mirror:\n""",
                 """            output.append('')\n""",
+                """\n""",
+                """def CData(*content):\n""",
+                """    output.append('%s<![CDATA[' % indent.blanks)\n""",
+                """    for line in content:\n""",
+                """        output.append('%s    %s' % (indent.blanks, line))\n""",
+                """    output.append('%s]]>' % indent.blanks)\n""",
                 """\n""",
                 """def Comment(*content):\n""",
                 """    output.append('%s<!--' % indent.blanks)\n""",

@@ -19,6 +19,57 @@ class TestXaml(TestCase):
 
     maxDiff = None
 
+    def test_content_xmling(self):
+        result = Xaml('<howdy!>').document.string()
+        expected = '&lt;howdy!&gt;'
+        self.assertEqual(expected, result)
+
+    def test_python_filter(self):
+        input = (
+            '''%opentag\n'''
+            '''    %data\n'''
+            '''        :python\n'''
+            '''            1 & 2\n'''
+            '''            5 < 9\n'''
+            '''\n'''
+            '''    %data\n'''
+            )
+        expected = (
+            '''<opentag>\n'''
+            '''    <data>\n'''
+            '''        <![CDATA[\n'''
+            '''            1 & 2\n'''
+            '''            5 < 9\n'''
+            '''        ]]>\n'''
+            '''    </data>\n'''
+            '''\n'''
+            '''    <data/>\n'''
+            '''</opentag>'''
+            ).encode('utf-8')
+        for exp_line, xaml_line in zip(expected.split(b'\n'), Xaml(input).document.bytes().split(b'\n')):
+            self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
+
+    def test_python_filter_as_last(self):
+        input = (
+            '''%opentag\n'''
+            '''    %data\n'''
+            '''        :python\n'''
+            '''            1 & 2\n'''
+            '''            5 < 9\n'''
+            )
+        expected = (
+            '''<opentag>\n'''
+            '''    <data>\n'''
+            '''        <![CDATA[\n'''
+            '''            1 & 2\n'''
+            '''            5 < 9\n'''
+            '''        ]]>\n'''
+            '''    </data>\n'''
+            '''</opentag>'''
+            ).encode('utf-8')
+        for exp_line, xaml_line in zip(expected.split(b'\n'), Xaml(input).document.bytes().split(b'\n')):
+            self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
+
     def test_meta_coding(self):
         result = Xaml('!!! coding: cp1252\n!!! xml'.encode('cp1252')).document.bytes()
         expected = '<?xml version="1.0" encoding="utf-8"?>\n'.encode('utf-8')
@@ -442,10 +493,9 @@ class TestXaml(TestCase):
 
     def test_filter(self):
         input = (
-            ''':python\n'''
-            '''    view = 'ir.ui.view'\n'''
-            '''    folder_model = 'fnx.fs.folder'\n'''
-            '''    files_model = 'fnx.fs.file'\n'''
+            '''-view = 'ir.ui.view'\n'''
+            '''-folder_model = 'fnx.fs.folder'\n'''
+            '''-files_model = 'fnx.fs.file'\n'''
             '''%openerp\n'''
             '''    %data\n'''
             '''        %menuitem @FnxFS #fnx_file_system groups='consumer'\n'''
@@ -481,11 +531,10 @@ class TestXaml(TestCase):
 
     def test_filter_2(self):
         input = (
-            ''':python\n'''
-            '''    view = 'ir.ui.view'\n'''
-            '''    folder_model = 'fnx.fs.folder'\n'''
-            '''    files_model = 'fnx.fs.file'\n'''
-            '''    action = 'ir.actions.act_window'\n'''
+            '''-view = 'ir.ui.view'\n'''
+            '''-folder_model = 'fnx.fs.folder'\n'''
+            '''-files_model = 'fnx.fs.file'\n'''
+            '''-action = 'ir.actions.act_window'\n'''
             '''%openerp\n'''
             '''    %data\n'''
             '''        %menuitem @FnxFS #fnx_file_system groups='consumer'\n'''
@@ -693,9 +742,8 @@ class TestTokenizer(TestCase):
     def test_tokens_4(self):
         result = list(Tokenizer(
             '''!!! xml\n'''
-            ''':python\n'''
-            '''  view="ir.ui.view"\n'''
-            '''  model="some_test.my_table"\n'''
+            '''-view="ir.ui.view"\n'''
+            '''-model="some_test.my_table"\n'''
             '''%openerp\n'''
             '''  %record #some_id model=view\n'''
             '''    @name: Folders\n'''
@@ -704,7 +752,8 @@ class TestTokenizer(TestCase):
         self.assertEqual(
             [
                 Token(TokenType.META, payload=('xml', '1.0')),
-                Token(tt.FILTER, ('python', '  view="ir.ui.view"\n  model="some_test.my_table"\n')),
+                Token(TokenType.PYTHON, payload=('view="ir.ui.view"',), make_safe=True),
+                Token(TokenType.PYTHON, payload=('model="some_test.my_table"',), make_safe=True),
                 Token(tt.ELEMENT, 'openerp'),
                 Token(tt.INDENT),
                 Token(tt.ELEMENT, 'record'),
