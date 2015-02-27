@@ -532,7 +532,7 @@ class Tokenizer:
             self.open_parens += 1
             self._consume_ws(include='\n')
         elif ch not in (' ', '\n', ':', '/', None):
-            raise ParseError(self.date.line, 'invalid character after value %r' % ''.join(value))
+            raise ParseError(self.data.line, 'invalid character after value %r' % ''.join(value))
         else:
             self.data.push_char(ch)
             self._consume_ws()
