@@ -1,3 +1,4 @@
+from __future__ import print_function
 from antipathy import Path
 from scription import *
 from xaml import Xaml
@@ -23,7 +24,7 @@ def xaml(file, dest, same_dir):
     with open(file) as source:
         xaml_doc = Xaml(source.read()).document
     if display:
-        print(xaml_doc.string())
+        print(xaml_doc.string(), verbose=0)
     else:
         with open(dest, 'wb') as target:
             target.write(xaml_doc.bytes())
@@ -35,13 +36,13 @@ def tokens(file):
     with open(file) as source:
         result = Xaml(source.read(), _compile=False)
     for token in result._tokens:
-        print(token)
+        print(token, verbose=0)
 
 @Command(file=('xaml file to convert', REQUIRED, 'f', Path),
         )
 def code(file):
     with open(file) as source:
         result = Xaml(source.read(), _compile=False)
-    print(result.document.code)
+    print(result.document.code, verbose=0)
 
 Main()
