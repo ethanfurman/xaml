@@ -14,7 +14,7 @@ import unicodedata
 __all__ = ['Xaml', ]
 __metaclass__ = type
 
-version = 0, 3, 5
+version = 0, 3, 6
 
 module = globals()
 
@@ -27,7 +27,7 @@ except NameError:
 # only change default_encoding if you cannot specify the proper encoding with a meta tag
 default_encoding = 'utf-8'
 
-# helprs {{{1
+# helpers {{{1
 class AutoEnum(Enum):
     """
     Automatically numbers enum members starting from 1.
