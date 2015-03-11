@@ -342,9 +342,8 @@ class Tokenizer:
 
     def _get_comment(self):
         line = self.data.get_line().rstrip()[2:]
-        if line[0] == ' ':
-            line = line[1:]
-        # line = self._consume_ws(line)
+        if line[0:1] == ' ':
+            line = line[1:]        
         return Token(tt.COMMENT, line)
 
     def _get_content(self):
