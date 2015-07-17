@@ -1,3 +1,9 @@
+0.3.07
+======
+
+add from-xml command to convert xml file to xaml (comments are lost)
+
+
 0.3.05
 ======
 
