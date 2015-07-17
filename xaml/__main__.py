@@ -1,7 +1,11 @@
 from __future__ import print_function, unicode_literals
 from antipathy import Path
 from scription import *
+from string import maketrans
 from xaml import Xaml
+from xml.etree import ElementTree as ET
+import sys
+
 
 Script(
         encoding=('encoding of source file [default: UTF-8]', OPTION),
@@ -52,4 +56,114 @@ def code(file):
         result = Xaml(source.read(), _compile=False)
     print(result.document.code, verbose=0)
 
-Main()
+
+@Command(
+        src=Spec('xml file(s) to convert to xaml', type=Path),
+        )
+def from_xml(*src):
+    "convert xml file to xaml"
+    for s in src:
+        root = ET.parse(s).getroot()
+        if s.ext == '.xml':
+            dst = s.strip_ext() + '.xaml'
+        else:
+            dst = s + '.xaml'
+        print('convert %s to %s' % (s, dst))
+        if display:
+            write_xaml(root, sys.stdout)
+        else:
+            with dst.open('w') as fh:
+                write_xaml(root, fh)
+
+
+def write_xaml(child, fh, level=0):
+    "child = xml element, fh = open file, level = indentation"
+    print(' ' * level + str(child), verbose=2)
+    if level == 0:
+        fh.write('!!! xml1.0\n')
+    elif level == 2:
+        fh.write('\n')
+    line = ['    ' * level]
+    attrib = child.attrib.copy()
+    name = attrib.pop('name', None)
+    id = attrib.pop('id', None)
+    string = attrib.pop('string', None)
+    model = attrib.pop('model', None)
+    cls = attrib.pop('class', None)
+    text = (child.text or '').strip()
+    tail = (child.tail or '').strip()
+    if name and child.tag == 'field':
+        line[0] += '@' + name
+        name = None
+    else:
+        line[0] += '%' + child.tag
+    if name:
+        if bad_name(name) or ' ' in name:
+            line.append('name=%r' % name)
+        else:
+            line.append('@' + name)
+    if string:
+        if bad_name(string):
+            line.append('string=%r' % string)
+        else:
+            line.append('$' + string.replace(' ','_'))
+    if model:
+        line.append('model=%r' % model)
+    if cls:
+        if ' ' in cls:
+            line.append('class=%r' % cls)
+        else:
+            line.append('.' + cls)
+    if id:
+        if bad_name(id):
+            line.append('id=%r' % id)
+        else:
+            line.append('#' + id)
+    for k in sorted(attrib.keys()):
+        line.append('%s=%r' % (k, child.attrib[k]))
+    line = ' '.join(line)
+    if text:
+        if '\n' in text or child.tag in ('p', 'div', 'html', 'body'):
+            text = ' '.join(text.split())
+        else:
+            line += ': %s' % text
+            text = None
+    fh.write(line + '\n')
+    if text:
+        fh.write('    ' * (level+1) + text + '\n')
+    if tail:
+        fh.write('    ' * (level-1) + tail + '\n')
+    for grandchild in child:
+        write_xaml(grandchild, fh, level+1)
+
+_strip_sentinel = object()
+def translator(frm=b'', to=b'', delete=b'', keep=b'', strip=_strip_sentinel):
+    if len(to) == 1:
+        to = to * len(frm)
+    bytes_trans = maketrans(frm, to)
+    if keep is not None:
+        allchars = maketrans(b'', b'')
+        delete = allchars.translate(allchars, keep.translate(allchars, delete)+frm)
+    uni_table = {}
+    for src, dst in zip(frm, to):
+        uni_table[ord(src)] = ord(dst)
+    for chr in delete:
+        uni_table[ord(chr)] = None
+    def translate(s):
+        if isinstance(s, unicode):
+            s = s.translate(uni_table)
+            if keep is not None:
+                del_table = {}
+                for chr in set(s) - set(keep):
+                    del_table[ord(chr)] = None
+                s = s.translate(del_table)
+        else:
+            s = s.translate(bytes_trans, delete)
+        if strip is not _strip_sentinel:
+            s = s.strip(strip)
+        return s
+    return translate
+
+bad_name = translator(keep=b"""!"#$%&'()*+,/;<=>?@[\\]^`{|}~\n""")
+
+Run()
