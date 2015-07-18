@@ -14,7 +14,7 @@ import unicodedata
 __all__ = ['Xaml', ]
 __metaclass__ = type
 
-version = 0, 3, 8
+version = 0, 3, 9
 
 module = globals()
 
