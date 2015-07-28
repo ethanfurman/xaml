@@ -78,7 +78,7 @@ def from_xml(*src):
 
 def write_xaml(child, fh, level=0):
     "child = xml element, fh = open file, level = indentation"
-    print('  ' * level + str(child), verbose=2)
+    print('   ' * level + str(child), verbose=2)
     if level == 0:
         fh.write(b'!!! xml1.0\n')
     elif level == 2:
@@ -130,9 +130,11 @@ def write_xaml(child, fh, level=0):
             text = None
     fh.write((line + '\n').encode('utf-8'))
     if text:
+        print(('   ' * (level+1) + child.tag + '.text: ' + text).encode('utf-8'), verbose=2)
         fh.write(('    ' * (level+1) + text + '\n').encode('utf-8'))
     if tail:
-        fh.write(('    ' * (level-1) + tail + '\n').encode('utf-8'))
+        print(('   ' * level + child.tag + '.tail: ' + tail).encode('utf-8'), verbose=2)
+        fh.write(('    ' * level + tail + '\n').encode('utf-8'))
     for grandchild in child:
         write_xaml(grandchild, fh, level+1)
 
