@@ -14,7 +14,7 @@ import unicodedata
 __all__ = ['Xaml', ]
 __metaclass__ = type
 
-version = 0, 3, 9
+version = 0, 3, 10
 
 module = globals()
 
@@ -571,6 +571,7 @@ class Tokenizer:
                     self.state.pop()
                     state = self.state[-1]
                 elif state is s.CONTENT and line[last_indent] != '%':
+                    # still in content
                     line = self.data.get_line()
                     self.data.push_line(line[last_indent:])
                     self.last_token = self._get_content()

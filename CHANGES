@@ -1,3 +1,9 @@
+0.3.10
+======
+
+allow tags in content line if at start of line (after whitespace)
+
+
 0.3.07
 ======
 
