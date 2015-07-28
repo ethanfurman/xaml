@@ -566,14 +566,15 @@ class Tokenizer:
                     return self.last_token
                 # found something, check if indentation has changed
                 last_indent = self.indents[-1]
-                if state is s.CONTENT and line[:last_indent].strip() == '':
+                if state is s.CONTENT and line[:last_indent].strip():
+                    # dedent out of content
+                    self.state.pop()
+                    state = self.state[-1]
+                elif state is s.CONTENT and line[last_indent] != '%':
                     line = self.data.get_line()
                     self.data.push_line(line[last_indent:])
                     self.last_token = self._get_content()
                     return self.last_token
-                elif state is s.CONTENT:
-                    self.state.pop()
-                    state = self.state[-1]
                 if not (line[:last_indent].lstrip() == '' and line[last_indent] != ' '):
                     self.state.append(s.DENTING)
                     self.last_token =  self._get_denting()

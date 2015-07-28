@@ -601,6 +601,22 @@ class TestXaml(TestCase):
         for exp_line, xaml_line in zip(expected.split('\n'), Xaml(input).document.string(order=order).split('\n')):
             self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
 
+    def test_tag_in_content(self):
+        input = '\n'.join([
+            """%div class='oe_partner oe_show_more'""",
+            """    And""",
+            """    %t t-raw='number'""",
+            """    more.""",
+            ])
+        expected = '\n'.join([
+            '''<div class="oe_partner oe_show_more">''',
+            '''    And''',
+            '''    <t t-raw="number"/>''',
+            '''    more.''',
+            ])
+        for exp_line, xaml_line in zip(expected.split('\n'), Xaml(input).document.string().split('\n')):
+            self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
+
 
 class TestPPLCStream(TestCase):
 
