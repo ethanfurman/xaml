@@ -617,6 +617,30 @@ class TestXaml(TestCase):
         for exp_line, xaml_line in zip(expected.split('\n'), Xaml(input).document.string().split('\n')):
             self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
 
+    def test_content_and_tag(self):
+        input = '\n'.join([
+            """%div""",
+            """    %span : Followers of selected items and""",
+            """    %span : Followers of""",
+            """        @record_name .oe_inline attrs="{'invisible':[('model', '=', False)]}" readonly='1'""",
+            """        and""",
+            """    @partner_ids""",
+            """@subject""",
+            ])
+        expected = '\n'.join([
+            '''<div>''',
+            '''    <span>Followers of selected items and</span>''',
+            '''    <span>Followers of''',
+            '''        <field name="record_name" class="oe_inline" attrs="{'invisible':[('model', '=', False)]}" readonly="1"/>''',
+            '''        and''',
+            '''    </span>''',
+            '''    <field name="partner_ids"/>''',
+            '''</div>''',
+            '''<field name="subject"/>''',
+            ])
+        for exp_line, xaml_line in zip(expected.split('\n'), Xaml(input).document.string().split('\n')):
+            self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
+
 
 class TestPPLCStream(TestCase):
 

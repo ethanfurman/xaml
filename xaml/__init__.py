@@ -699,6 +699,7 @@ class Xaml(object):
         encoding_specified = False
         output = []
         attrs = {}
+        data = None
         for token in self._tokens:
             # print 'depth:', ','.join(t.type.name for t in self._depth[1:])
             last_token = self._depth and self._depth[-1] or Token(None)
@@ -726,6 +727,7 @@ class Xaml(object):
                     output.append(self._indents.blanks + '        )\n')
                     self._depth.pop()
                     last_token = self._depth[-1]
+            # ATTR
             if token.type in (tt.CODE_ATTR, tt.STR_ATTR):
                 assert last_token.type is tt.ELEMENT, 'the tokenizer is busted (ATTR and last is %r [current: %r])' % (last_token, token)
                 name, value = token.payload
@@ -738,8 +740,9 @@ class Xaml(object):
             elif token.type is tt.COMMENT:
                 last_token, pending_newline = self._check_for_newline(last_token)
                 if last_token.type is tt.ELEMENT:
-                    output[-1] += ', attrs={%s})\n' % ', '.join(['%r:%s' % (k, v) for k, v in attrs.items()])
+                    output[-1] += join(attrs, data)
                     attrs = {}
+                    data = None
                     self._depth.pop()
                     if pending_newline:
                         self._append_newline()
@@ -754,8 +757,9 @@ class Xaml(object):
                 last_token, pending_newline = self._check_for_newline(last_token)
                 if last_token.type is tt.ELEMENT:
                     # close previous element
-                    output[-1] += ', attrs={%s})\n' % ', '.join(['%r:%s' % (k, v) for k, v in attrs.items()])
+                    output[-1] += join(attrs, data)
                     attrs = {}
+                    data = None
                     self._depth.pop()
                 if pending_newline:
                     output.append(self._indents.blanks + 'Blank()\n')
@@ -764,8 +768,6 @@ class Xaml(object):
                 output.append(self._indents.blanks + 'Content(%r)\n' % self._coder(value))
             # DATA
             elif token.type in (tt.CODE_DATA, tt.STR_DATA):
-                string = ', attrs={%s})' % ', '.join(['%r:%s' % (k, v) for k, v in attrs.items()])
-                attrs = {}
                 value ,= token.payload
                 if token.type is tt.CODE_DATA:
                     pass
@@ -773,9 +775,7 @@ class Xaml(object):
                     if token.make_safe:
                         value = self._coder(value)
                     value = repr(value)
-                token = self._depth.pop()
-                string += '(%s)\n' % value
-                output[-1] += string
+                data =  value
             # DEDENT
             elif token.type is tt.DEDENT:
                 last_token, pending_newline = self._check_for_newline(last_token)
@@ -783,8 +783,9 @@ class Xaml(object):
                 # tags dedented to
                 self._indents.dec()
                 if last_token.type is tt.ELEMENT:
-                    output[-1] += ', attrs={%s})\n' % ', '.join(['%r:%s' % (k, v) for k, v in attrs.items()])
+                    output[-1] += join(attrs, data)
                     attrs = {}
+                    data = None
                     self._depth.pop()
                 should_be_indent = self._depth.pop()
                 assert should_be_indent.type in (tt.INDENT, None), 'something broke: %s\n%s' % (should_be_indent, ''.join(output))
@@ -807,8 +808,9 @@ class Xaml(object):
                 last_token, pending_newline = self._check_for_newline(last_token)
                 if last_token.type is tt.ELEMENT:
                     # close previous element
-                    output[-1] += ', attrs={%s})\n' % ', '.join(['%r:%s' % (k, v) for k, v in attrs.items()])
+                    output[-1] += join(attrs, data)
                     attrs = {}
+                    data = None
                     self._depth.pop()
                 if pending_newline:
                     output.append(self._indents.blanks + 'Blank()\n')
@@ -832,8 +834,9 @@ class Xaml(object):
                 last_token, pending_newline = self._check_for_newline(last_token)
                 with_ele = False
                 if last_token.type is tt.ELEMENT:
-                    output[-1] = 'with %s, attrs={%s}):\n' % (output[-1], ', '.join(['%r:%s' % (k, v) for k, v in attrs.items()]))
+                    output[-1] = 'with %s' % output[-1] + join(attrs, data, ':')
                     attrs = {}
+                    data = None
                     with_ele = True
                 self._indents.inc()
                 if pending_newline:
@@ -859,8 +862,9 @@ class Xaml(object):
                 last_token, pending_newline = self._check_for_newline(last_token)
                 if last_token.type is tt.ELEMENT:
                     # close previous element
-                    output[-1] += ', attrs={%s})\n' % ', '.join(['%r:%s' % (k, v) for k, v in attrs.items()])
+                    output[-1] += join(attrs, data)
                     attrs = {}
+                    data = None
                     self._depth.pop()
                 if pending_newline:
                     output.append(self._indents.blanks + 'Blank()\n')
@@ -911,19 +915,26 @@ class Xaml(object):
                 """class Element:\n""",
                 """    def __init__(self, tag, attrs={}):\n""",
                 """        self.tag = tag\n""",
+                """        self.content = False\n""",
                 """        attrs = ' '.join(['%s="%s"' % (k, v) for k, v in attrs.items()])\n"""
                 """        if attrs:\n""",
                 """            attrs = ' ' + attrs\n""",
                 """        output.append('%s<%s%s/>' % (indent.blanks, tag, attrs))\n""",
                 """    def __call__(self, content):\n""",
+                """        self.content = True\n""",
                 """        output[-1] = output[-1][:-2] + '>%s</%s>' % (content, self.tag)\n""",
+                """        return self\n""",
                 """    def __enter__(self):\n""",
                 """        if output and output[-1] == '':\n""",
                 """            target = -2\n""",
                 """        else:\n""",
                 """            target = -1\n""",
                 """        indent.inc()\n""",
-                """        output[target] = output[target][:-2] + '>'\n""",
+                """        if self.content:\n""",
+                """            blank = len('</%s>' % self.tag)\n""",
+                """            output[target] = output[target][:-blank]\n""",
+                """        else:\n""",
+                """            output[target] = output[target][:-2] + '>'\n""",
                 """    def __exit__(self, *args):\n""",
                 """        indent.dec()\n""",
                 """        output.append('%s</%s>' % (indent.blanks, self.tag))\n""",
@@ -1036,3 +1047,26 @@ xmlify = minimal
 ml_types = {
     'xml1.0' : xmlify,
     }
+
+def join(attrs, data, trailing=''):
+    "create attribute and string portion of Element"
+    string = ')'
+    if attrs:
+        order = []
+        id = None
+        keys = list(attrs.keys())
+        for attr in ('name', 'model', 'class'):
+            if attr in keys:
+                order.append(attr)
+                keys.remove(attr)
+        if 'id' in keys:
+            keys.remove('id')
+            id = True
+        order.extend(sorted(keys))
+        if id:
+            order.append('id')
+        string = ', attrs={%s})' % ', '.join(['%r:%s' % (k, attrs[k]) for k in order])
+    if data:
+        string += '(%s)' % data
+    string += trailing + '\n'
+    return string
