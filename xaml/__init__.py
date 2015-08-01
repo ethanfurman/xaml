@@ -421,12 +421,23 @@ class Tokenizer:
     def _get_meta(self):
         self.data.push_line(self.data.get_line()[3:])
         name, _ = self._get_name()
-        if name in ('xml', 'xml1.0'):
-            name = 'xml', '1.0'
+        typ = []
+        for i, ch in enumerate(name.lower()):
+            if ch not in 'abcdefghijklmnopqrstuvwxyz':
+                ver = name[i:]
+                break
+            typ.append(ch)
+        else:
+            ver = ''
+        typ = ''.join(typ)
+        if not ver and typ == 'xml':
+            ver = '1.0'
+        name = typ, ver
         token = Token(tt.META, name)
         self.state.pop()
         self.state.append(s.ELEMENT)
         return token
+
 
     def _get_name(self, extra_chars=(), extra_types=(), extra_terminators=()):
         """
@@ -623,7 +634,7 @@ class Tokenizer:
             self.last_token = self._get_data()
             return self.last_token
         else:
-            raise ParseError(self.date.line, 'unknown state: %s' % state)
+            raise ParseError(self.data.line, 'unknown state: %s' % state)
 
 class ML:
 
@@ -644,7 +655,7 @@ class ML:
                 found_enc = True
                 enc_value =  value.lower().replace('-', '').strip('"')
                 if enc_value != 'utf8':
-                    raise ParseError(self.date.line, 'only utf-8 is supported (not %r)' % value)
+                    raise ParseError('only utf-8 is supported (not %r)' % value)
                 self.encoding = enc_value
             self.attrs.append((name, value))
         if not found_enc:
@@ -716,7 +727,7 @@ class Xaml(object):
                     self.ml= ML(output.pop())
                     self._coder = ml_types.get(self.ml.key)
                     if self._coder is None:
-                        raise ParseError(self.date.line, 'markup language %r not supported' % self.ml.type)
+                        raise ParseError('markup language %r not supported' % self.ml.key)
                     self._depth.pop()
                     if token.type is tt.DEDENT:
                         break
@@ -828,7 +839,7 @@ class Xaml(object):
                         output.append(blank + '    %r,\n' % line)
                     output.append(blank + ')\n')
                 else:
-                    raise ParseError(self.date.line, 'unknown filter: %r' % name)
+                    raise ParseError('unknown filter: %r' % name)
             # INDENT
             elif token.type is tt.INDENT:
                 last_token, pending_newline = self._check_for_newline(last_token)
@@ -850,12 +861,12 @@ class Xaml(object):
             # META
             elif token.type is tt.META:
                 if len(self._depth) != 1 or self._depth[0].type != None:
-                    raise ParseError(self.date.line, 'meta tags (such as %r) cannot be nested' % token.payload)
+                    raise ParseError('meta tags (such as %r) cannot be nested' % token.payload)
                 name, value = token.payload
                 if name == 'xml':
                     output.append('<?xml version="%s"' % value)
                 else:
-                    raise SystemExit('unknown META: %r' % ((name, value)))
+                    raise SystemExit('unknown META: %r' % ((name, value), ))
                 self._depth.append(token)
             # PYTHON
             elif token.type is tt.PYTHON:
@@ -878,7 +889,7 @@ class Xaml(object):
                     self._depth.append(token)
             # problem
             else:
-                raise ParseError(self.date.line, 'unknown token: %r' % token)
+                raise ParseError('unknown token: %r' % token)
         global_code = [
                 """output = []\n""",
                 """\n""",

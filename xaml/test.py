@@ -19,6 +19,10 @@ class TestXaml(TestCase):
 
     maxDiff = None
 
+    def test_bad_meta_type(self):
+        input = ('''!!! xaml1.0''')
+        self.assertRaises(SystemExit, Xaml, input)
+
     def test_content_xmling(self):
         result = Xaml('<howdy!>').document.string()
         expected = '&lt;howdy!&gt;'
