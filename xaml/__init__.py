@@ -679,7 +679,7 @@ class ML:
 # xaml itself {{{1
 class Xaml(object):
 
-    def __init__(self, text, _parse=True, _compile=True):
+    def __init__(self, text, _parse=True, _compile=True, **namespace):
         # indents tracks valid indentation levels
         self._tokens = list(Tokenizer(text))
         self._depth = [Token(None)]
@@ -688,7 +688,7 @@ class Xaml(object):
         self.ml = None
         self._encoding = default_encoding
         if _parse:
-            self._document = self._parse(_compile=_compile)
+            self._document = self._parse(_compile=_compile, **namespace)
         else:
             self._document = None
 
@@ -706,7 +706,7 @@ class Xaml(object):
         else:
             return self._depth[-2], self._depth.pop()
 
-    def _parse(self, _parse=True, _compile=True):
+    def _parse(self, _parse=True, _compile=True, **namespace):
         encoding_specified = False
         output = []
         attrs = {}
@@ -967,6 +967,7 @@ class Xaml(object):
         # print ''.join(pre_code+output+post_code)
         code = ''.join(pre_code+output+post_code)
         glbls = globals().copy()
+        glbls.update(namespace)
         exec(''.join(global_code), glbls)
         if _compile:
             exec(code, glbls)
