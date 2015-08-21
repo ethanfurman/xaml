@@ -1,3 +1,9 @@
+0.3.12
+======
+
+allow a namespace to be injected into the xaml execution environment
+
+
 0.3.10
 ======
 
