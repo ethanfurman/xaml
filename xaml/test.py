@@ -778,7 +778,7 @@ class TestXaml(TestCase):
         document = Xaml(input).document
         self.assertRaises(ValueError, document.string)
 
-    def test_xml_void_html(self):
+    def test_xml_html_void_tags(self):
         input = '\n'.join([
             '''%html''',
             '''    %area''',
@@ -801,6 +801,32 @@ class TestXaml(TestCase):
             ])
         for exp_line, xaml_line in zip(expected.split('\n'), Xaml(input).document.string().split('\n')):
             self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
+
+    # def test_valid_html4_strict(self):
+    #     input = '\n'.join([
+    #         '''!!!html4s''',
+    #         '''%html''',
+    #         '''    %head''',
+    #         '''        %title: Testing HTML 4 Strict''',
+    #         '''    %body''',
+    #         '''        %div .container''',
+    #         '''            This is a test of something.''',
+    #         ])
+    #     expected = '\n'.join([
+    #         '''<html>''',
+    #         '''    <area>''',
+    #         '''        <title>my cool app!</title>''',
+    #         '''    </area>''',
+    #         '''    <body>''',
+    #         '''        <div class="container">''',
+    #         '''            This is a test of something.''',
+    #         '''        </div>''',
+    #         '''    </body>''',
+    #         '''</html>''',
+    #         ])
+    #     for exp_line, xaml_line in zip(expected.split('\n'), Xaml(input).document.string().split('\n')):
+    #         self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
+    # 
 
 
 class TestPPLCStream(TestCase):

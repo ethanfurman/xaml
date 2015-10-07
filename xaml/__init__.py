@@ -14,7 +14,7 @@ import unicodedata
 __all__ = ['Xaml', ]
 __metaclass__ = type
 
-version = 0, 3, 12
+version = 0, 3, 13
 
 module = globals()
 
@@ -143,7 +143,6 @@ class PPLCStream:
             for ch in invalid_xml_chars:
                 if ch in line:
                     raise InvalidXmlCharacter(i, 'Character %r not allowed in xaml documents' % ch)
-
         self.data = text
         self.data.reverse()
         self.chars = []
@@ -652,7 +651,7 @@ class ML:
 
     doc_types = {
             'xml': ['1.0', '1.1'],
-            'html': ['5', '4', '4 transitional', '4 strict'],
+            'html': ['5', '4', '4t', '4s', '4-transitional', '4-strict'],
             }
     doc_headers = {
             'html5': ('<!', 'DOCTYPE html', '>'),
@@ -670,7 +669,10 @@ class ML:
             raise ValueError('type')
         self.encoding = values.pop('encoding', default_encoding)
         self.type = values.pop('type')
-        self.version = values.pop('version', {'xml':'1.0', 'html':'5'}[self.type])
+        version = values.pop('version', {'xml':'1.0', 'html':'5'}[self.type])
+        if version[5:6] == '-':
+            version = version[:5] + version[6]
+        self.version = version
         self.key = self.type + self.version
         self.attrs = []
         for k, v in values.items():
@@ -989,8 +991,12 @@ class Xaml(object):
                 """\n""",
                 """class Element:\n""",
                 """    def __init__(self, tag, attrs={}):\n""",
+                """        if (type == 'html4s' and tag not in html4s or \n""",
+                """            type == 'html4t' and tag not in html4t or \n""",
+                """            type == 'html5' and tag not in html5):\n""",
+                """                raise ValueError('tag %s not allowed in %s' % (tag, type))\n""",
                 """        self.tag = tag\n""",
-                """        self.void = type == 'html' and tag in html_void_elements\n""",
+                """        self.void = type[:4] == 'html' and tag in html_void_elements\n""",
                 """        if self.void:\n""",
                 """            template = '%s<%s%s>'\n""",
                 """        else:\n""",
@@ -1133,34 +1139,37 @@ xmlify = minimal
 ml_types = {
     'xml1.0' : xmlify,
     'html4'  : xmlify,
-    'html4 transitional': xmlify,
+    'html4t': xmlify,
     'html5'  : xmlify,
     }
 
-html4_strict_elements = [
-        'A', 'ABBR', 'ACRONYM', 'ADDRESS', 'AREA', 'B', 'BASE', 'BDO', 'BIG', 'BLOCKQUOTE', 'BODY', 'BR', 'BUTTON', 'CAPTION', 'CITE',
-        'CODE', 'COL', 'COLGROUP', 'DD', 'DEL', 'DFN', 'DIV', 'DL', 'DT', 'EM', 'FIELDSET', 'FORM', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6',
-        'HEAD', 'HR', 'HTML', 'I', 'IMG', 'INPUT', 'INS', 'KBD', 'LABEL', 'LEGEND', 'LI', 'LINK', 'MAP', 'META', 'NOSCRIPT', 'OBJECT',
-        'OL', 'OPTGROUP', 'OPTION', 'P', 'PARAM', 'PRE', 'Q', 'SAMP', 'SCRIPT', 'SELECT', 'SMALL', 'SPAN', 'STRONG', 'STYLE', 'SUB',
-        'SUP', 'TABLE', 'TBODY', 'TD', 'TEXTAREA', 'TFOOT', 'TH', 'THEAD', 'TITLE', 'TR', 'TT', 'UL', 'VAR',
+html4s = html4_strict_elements = [
+        'A', 'ABBR', 'ACRONYM', 'ADDRESS', 'AREA', 'B', 'BASE', 'BDO', 'BIG', 'BLOCKQUOTE', 'BODY', 'BR', 'BUTTON',
+        'CAPTION', 'CITE', 'CODE', 'COL', 'COLGROUP', 'DD', 'DEL', 'DFN', 'DIV', 'DL', 'DT', 'EM', 'FIELDSET', 'FORM',
+        'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'HEAD', 'HR', 'HTML', 'I', 'IMG', 'INPUT', 'INS', 'KBD', 'LABEL', 'LEGEND',
+        'LI', 'LINK', 'MAP', 'META', 'NOSCRIPT', 'OBJECT', 'OL', 'OPTGROUP', 'OPTION', 'P', 'PARAM', 'PRE', 'Q', 'SAMP',
+        'SCRIPT', 'SELECT', 'SMALL', 'SPAN', 'STRONG', 'STYLE', 'SUB', 'SUP', 'TABLE', 'TBODY', 'TD', 'TEXTAREA', 'TFOOT',
+        'TH', 'THEAD', 'TITLE', 'TR', 'TT', 'UL', 'VAR',
         ]
 
-html4_transitional_elements = [
-        'A', 'ABBR', 'ACRONYM', 'ADDRESS', 'APPLET', 'AREA', 'B', 'BASE', 'BASEFONT', 'BDO', 'BIG', 'BLOCKQUOTE', 'BODY', 'BR', 'BUTTON',
-        'CAPTION', 'CENTER', 'CITE', 'CODE', 'COL', 'COLGROUP', 'DD', 'DEL', 'DFN', 'DIR', 'DIV', 'DL', 'DT', 'EM', 'FIELDSET', 'FONT',
-        'FORM', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'HEAD', 'HR', 'HTML', 'I', 'IFRAME', 'IMG', 'INPUT', 'INS', 'ISINDEX', 'KBD', 'LABEL',
-        'LEGEND', 'LI', 'LINK', 'MAP', 'MENU', 'META', 'NOSCRIPT', 'OBJECT', 'OL', 'OPTGROUP', 'OPTION', 'P', 'PARAM', 'PRE', 'Q', 'S',
-        'SAMP', 'SCRIPT', 'SELECT', 'SMALL', 'SPAN', 'STRIKE', 'STRONG', 'STYLE', 'SUB', 'SUP', 'TABLE', 'TBODY', 'TD', 'TEXTAREA',
-        'TFOOT', 'TH', 'THEAD', 'TITLE', 'TR', 'TT', 'U', 'UL', 'VAR',
+html4t = html4_transitional_elements = [
+        'A', 'ABBR', 'ACRONYM', 'ADDRESS', 'APPLET', 'AREA', 'B', 'BASE', 'BASEFONT', 'BDO', 'BIG', 'BLOCKQUOTE',
+        'BODY', 'BR', 'BUTTON', 'CAPTION', 'CENTER', 'CITE', 'CODE', 'COL', 'COLGROUP', 'DD', 'DEL', 'DFN', 'DIR',
+        'DIV', 'DL', 'DT', 'EM', 'FIELDSET', 'FONT', 'FORM', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'HEAD', 'HR', 'HTML',
+        'I', 'IFRAME', 'IMG', 'INPUT', 'INS', 'ISINDEX', 'KBD', 'LABEL', 'LEGEND', 'LI', 'LINK', 'MAP', 'MENU', 'META',
+        'NOSCRIPT', 'OBJECT', 'OL', 'OPTGROUP', 'OPTION', 'P', 'PARAM', 'PRE', 'Q', 'S', 'SAMP', 'SCRIPT', 'SELECT',
+        'SMALL', 'SPAN', 'STRIKE', 'STRONG', 'STYLE', 'SUB', 'SUP', 'TABLE', 'TBODY', 'TD', 'TEXTAREA', 'TFOOT', 'TH',
+        'THEAD', 'TITLE', 'TR', 'TT', 'U', 'UL', 'VAR',
         ]
 
-html5_elements = [
-        'A', 'ABBR', 'ADDRESS', 'AREA', 'ARTICLE', 'ASIDE', 'AUDIO', 'B', 'BASE', 'BDI', 'BDO', 'BLOCKQUOTE', 'BODY', 'BR', 'BUTTON',
-        'CANVAS', 'CAPTION', 'CITE', 'CODE', 'COL', 'COLGROUP', 'COMMAND', 'DATALIST', 'DD', 'DEL', 'DETAILS', 'DFN', 'DIV', 'DL', 'DT',
-        'EM', 'EMBED', 'FIELDSET', 'FIGCAPTION', 'FIGURE', 'FORM', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'HEAD', 'HEADER', 'HGROUP', 'HR',
-        'HTML', 'I', 'IMG', 'INPUT', 'INS', 'KBD', 'LABEL', 'LEGEND', 'LI', 'LINK', 'MAP', 'MARK', 'MENU', 'META', 'METER', 'NAV',
-        'NOSCRIPT', 'OBJECT', 'OL', 'OPTGROUP', 'OPTION', 'P', 'PARAM', 'PRE', 'PROGRESS', 'Q', 'RP', 'RT', 'RUBY', 'S', 'SAMP', 'SCRIPT',
-        'SECTION', 'SELECT', 'SMALL', 'SOURCE', 'SPAN', 'STRONG', 'STYLE', 'SUB', 'SUMMARY', 'SUP', 'TABLE', 'TBODY', 'TD', 'TEXTAREA',
+html5 = html5_elements = [
+        'A', 'ABBR', 'ADDRESS', 'AREA', 'ARTICLE', 'ASIDE', 'AUDIO', 'B', 'BASE', 'BDI', 'BDO', 'BLOCKQUOTE', 'BODY',
+        'BR', 'BUTTON', 'CANVAS', 'CAPTION', 'CITE', 'CODE', 'COL', 'COLGROUP', 'COMMAND', 'DATALIST', 'DD', 'DEL',
+        'DETAILS', 'DFN', 'DIV', 'DL', 'DT', 'EM', 'EMBED', 'FIELDSET', 'FIGCAPTION', 'FIGURE', 'FORM', 'H1', 'H2',
+        'H3', 'H4', 'H5', 'H6', 'HEAD', 'HEADER', 'HGROUP', 'HR', 'HTML', 'I', 'IMG', 'INPUT', 'INS', 'KBD', 'LABEL',
+        'LEGEND', 'LI', 'LINK', 'MAP', 'MARK', 'MENU', 'META', 'METER', 'NAV', 'NOSCRIPT', 'OBJECT', 'OL', 'OPTGROUP',
+        'OPTION', 'P', 'PARAM', 'PRE', 'PROGRESS', 'Q', 'RP', 'RT', 'RUBY', 'S', 'SAMP', 'SCRIPT', 'SECTION', 'SELECT',
+        'SMALL', 'SOURCE', 'SPAN', 'STRONG', 'STYLE', 'SUB', 'SUMMARY', 'SUP', 'TABLE', 'TBODY', 'TD', 'TEXTAREA',
         'TFOOT', 'TH', 'THEAD', 'TIME', 'TITLE', 'TR', 'TRACK', 'U', 'UL', 'VAR', 'VIDEO', 'WBR',
         ]
 html_void_elements = ['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'keygen', 'link', 'meta', 'param', 'source', 'track', 'wbr']
