@@ -143,6 +143,7 @@ class PPLCStream:
             for ch in invalid_xml_chars:
                 if ch in line:
                     raise InvalidXmlCharacter(i, 'Character %r not allowed in xaml documents' % ch)
+
         self.data = text
         self.data.reverse()
         self.chars = []
@@ -430,14 +431,16 @@ class Tokenizer:
         else:
             ver = ''
         typ = ''.join(typ)
-        if not ver and typ == 'xml':
-            ver = '1.0'
+        if not ver:
+            if typ == 'xml':
+                ver = '1.0'
+            elif typ == 'html':
+                ver = '5'
         name = typ, ver
         token = Token(tt.META, name)
         self.state.pop()
         self.state.append(s.ELEMENT)
         return token
-
 
     def _get_name(self, extra_chars=(), extra_types=(), extra_terminators=()):
         """
@@ -459,8 +462,17 @@ class Tokenizer:
             default = True
         else:
             while 'collecting characters':
-                if ch in '''!"#$%&'()*+,/;<=>?@[\\]^`{|}~ \n''':
+                if ch in '''!"#$%&'()*+,/;<=>?@[]^`{|}~ \n''':
                     break
+                if ch == ':':
+                    # ':' must be backslash-escaped to be in name
+                    break
+                if ch == '\\':
+                    # check if next char is ':'
+                    if self.data.peek_char() == ':':
+                        ch = self.data.get_char()
+                    else:
+                        break
                 name.append(ch)
                 ch = self.data.get_char()
             name = ''.join(name)
@@ -638,42 +650,50 @@ class Tokenizer:
 
 class ML:
 
-    def __init__(self, text):
-        text = text.strip()[2:-2]
-        # if any values ever have spaces, will need to change this
-        pieces = text.split()
-        self.type = pieces[0]
-        self.encoding = default_encoding
-        self.key = None
+    doc_types = {
+            'xml': ['1.0', '1.1'],
+            'html': ['5', '4', '4 transitional', '4 strict'],
+            }
+    doc_headers = {
+            'html5': ('<!', 'DOCTYPE html', '>'),
+            'html4': ('<!', 'DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd"', '>'),
+            'html4s': ('<!', 'DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd"', '>'),
+            'html4-strict': ('<!', 'DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd"', '>'),
+            'html4t': ('<!', 'DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd"', '>'),
+            'html4-transitional': ('<!', 'DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd"', '>'),
+            'xml1.0': ('<?', 'xml version="1.0"', '?>'),
+            'xml1.1': ('<?', 'xml version="1.1"', '?>'),
+            }
+
+    def __init__(self, values):
+        if 'type' not in values:
+            raise ValueError('type')
+        self.encoding = values.pop('encoding', default_encoding)
+        self.type = values.pop('type')
+        self.version = values.pop('version', {'xml':'1.0', 'html':'5'}[self.type])
+        self.key = self.type + self.version
         self.attrs = []
-        found_enc = False
-        for nv in pieces[1:]:
-            name, value = nv.split('=', 1)
-            if name == 'version':
-                self.key = self.type + value.strip('"')
-            if name == 'encoding':
-                found_enc = True
-                enc_value =  value.lower().replace('-', '').strip('"')
-                if enc_value != 'utf8':
-                    raise ParseError('only utf-8 is supported (not %r)' % value)
-                self.encoding = enc_value
-            self.attrs.append((name, value))
-        if not found_enc:
-            self.attrs.append(('encoding', '"%s"' % default_encoding))
+        for k, v in values.items():
+            self.attrs.append((k, v))
+        self.attrs.append(('encoding', '"%s"' % self.encoding))
         
     def __str__(self):
-        res = []
+        leader, middle, end = self.doc_headers[self.key]
+        res = [middle]
         for name, value in self.attrs:
             if name == 'encoding':
                 continue
             res.append('%s=%s' % (name, value))
-        return '<?%s %s?>\n' % (self.type, ' '.join(res))
+        return '%s%s%s\n' % (leader, ' '.join(res), end)
 
     def bytes(self):
-        res = []
+        leader, middle, end = self.doc_headers[self.key]
+        res = [middle]
         for nv in self.attrs:
+            if self.type == 'html' and nv[0] == 'encoding':
+                continue
             res.append('%s=%s' % nv)
-        return ('<?%s %s?>\n' % (self.type, ' '.join(res))).encode(self.encoding)
+        return ('%s%s%s\n' % (leader, ' '.join(res), end)).encode(self.encoding)
 
 
 # xaml itself {{{1
@@ -682,6 +702,51 @@ class Xaml(object):
     def __init__(self, text, _parse=True, _compile=True, **namespace):
         # indents tracks valid indentation levels
         self._tokens = list(Tokenizer(text))
+        # check if html
+        i = -1
+        seeking_head = False
+        while i < len(self._tokens):
+            i += 1
+            token = self._tokens[i]
+            if seeking_head:
+                if token.type is not tt.ELEMENT:
+                    continue
+                elif token.payload[0] == 'body':
+                    # found body without head
+                    # insert head and charset
+                    self._tokens[i:i] = [
+                            Token(tt.ELEMENT, 'head'),
+                            Token(tt.INDENT),
+                            Token(tt.ELEMENT, 'meta'),
+                            Token(tt.STR_ATTR, ('charset', 'utf-8')),
+                            Token(tt.DEDENT),
+                            ]
+                    break
+                elif token.payload[0] == 'head':
+                    i += 1
+                    next_token = self._tokens[i]
+                    need_dedent = False
+                    if next_token.type != tt.INDENT:
+                        self._tokens[i:i] = [
+                                Token(tt.INDENT),
+                                ]
+                        need_dedent = True
+                    i += 1
+                    self._tokens[i:i] = [
+                            Token(tt.ELEMENT, 'meta'),
+                            Token(tt.STR_ATTR, ('charset', 'utf-8')),
+                            ]
+                    i += 2
+                    if need_dedent:
+                        self._tokens[i:i] = [
+                                Token(tt.DEDENT),
+                                ]
+                    break
+            if token.type in (tt.INDENT, tt.DEDENT):
+                break
+            if token.type is tt.META and token.payload[0] == 'html':
+                # this is an html document; scan for head and/or body
+                seeking_head = True
         self._depth = [Token(None)]
         self._indents = Indent(level=1)
         self._coder = minimal
@@ -707,24 +772,22 @@ class Xaml(object):
             return self._depth[-2], self._depth.pop()
 
     def _parse(self, _parse=True, _compile=True, **namespace):
-        encoding_specified = False
         output = []
         attrs = {}
         data = None
+        meta = {}
+        type = 'xml'
         for token in self._tokens:
             # print 'depth:', ','.join(t.type.name for t in self._depth[1:])
             last_token = self._depth and self._depth[-1] or Token(None)
             if last_token.type is tt.META:
                 if token.type is tt.STR_ATTR:
                     name, value = token.payload
-                    if last_token.payload[0] == 'xml':
-                        if not encoding_specified and name == 'encoding':
-                            encoding_specified = True
-                    output[-1] += ' %s="%s"' % (name, value)
+                    meta[name] = value
                     continue
                 elif token.type not in (tt.CODE_ATTR, tt.STR_DATA, tt.CODE_DATA):
-                    output[-1] += '?>\n'
-                    self.ml= ML(output.pop())
+                    self.ml = ML(meta)
+                    type = self.ml.type
                     self._coder = ml_types.get(self.ml.key)
                     if self._coder is None:
                         raise ParseError('markup language %r not supported' % self.ml.key)
@@ -863,8 +926,9 @@ class Xaml(object):
                 if len(self._depth) != 1 or self._depth[0].type != None:
                     raise ParseError('meta tags (such as %r) cannot be nested' % token.payload)
                 name, value = token.payload
-                if name == 'xml':
-                    output.append('<?xml version="%s"' % value)
+                if name in ML.doc_types and value in ML.doc_types[name]:
+                    meta['type'] = name
+                    meta['version'] = value
                 else:
                     raise SystemExit('unknown META: %r' % ((name, value), ))
                 self._depth.append(token)
@@ -926,16 +990,25 @@ class Xaml(object):
                 """class Element:\n""",
                 """    def __init__(self, tag, attrs={}):\n""",
                 """        self.tag = tag\n""",
+                """        self.void = type == 'html' and tag in html_void_elements\n""",
+                """        if self.void:\n""",
+                """            template = '%s<%s%s>'\n""",
+                """        else:\n""",
+                """            template = '%s<%s%s/>'\n""",
                 """        self.content = False\n""",
                 """        attrs = ' '.join(['%s="%s"' % (k, v) for k, v in attrs.items()])\n"""
                 """        if attrs:\n""",
                 """            attrs = ' ' + attrs\n""",
-                """        output.append('%s<%s%s/>' % (indent.blanks, tag, attrs))\n""",
+                """        output.append(template % (indent.blanks, tag, attrs))\n""",
                 """    def __call__(self, content):\n""",
+                """        if self.void:\n""",
+                """            raise ValueError('content not allowed for void elements')\n""",
                 """        self.content = True\n""",
                 """        output[-1] = output[-1][:-2] + '>%s</%s>' % (content, self.tag)\n""",
                 """        return self\n""",
                 """    def __enter__(self):\n""",
+                """        if self.void:\n""",
+                """            raise ValueError('content not allowed for void elements')\n""",
                 """        if output and output[-1] == '':\n""",
                 """            target = -2\n""",
                 """        else:\n""",
@@ -968,6 +1041,7 @@ class Xaml(object):
         code = ''.join(pre_code+output+post_code)
         glbls = globals().copy()
         glbls.update(namespace)
+        glbls['type'] = type
         exec(''.join(global_code), glbls)
         if _compile:
             exec(code, glbls)
@@ -1058,7 +1132,38 @@ xmlify = minimal
 
 ml_types = {
     'xml1.0' : xmlify,
+    'html4'  : xmlify,
+    'html4 transitional': xmlify,
+    'html5'  : xmlify,
     }
+
+html4_strict_elements = [
+        'A', 'ABBR', 'ACRONYM', 'ADDRESS', 'AREA', 'B', 'BASE', 'BDO', 'BIG', 'BLOCKQUOTE', 'BODY', 'BR', 'BUTTON', 'CAPTION', 'CITE',
+        'CODE', 'COL', 'COLGROUP', 'DD', 'DEL', 'DFN', 'DIV', 'DL', 'DT', 'EM', 'FIELDSET', 'FORM', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6',
+        'HEAD', 'HR', 'HTML', 'I', 'IMG', 'INPUT', 'INS', 'KBD', 'LABEL', 'LEGEND', 'LI', 'LINK', 'MAP', 'META', 'NOSCRIPT', 'OBJECT',
+        'OL', 'OPTGROUP', 'OPTION', 'P', 'PARAM', 'PRE', 'Q', 'SAMP', 'SCRIPT', 'SELECT', 'SMALL', 'SPAN', 'STRONG', 'STYLE', 'SUB',
+        'SUP', 'TABLE', 'TBODY', 'TD', 'TEXTAREA', 'TFOOT', 'TH', 'THEAD', 'TITLE', 'TR', 'TT', 'UL', 'VAR',
+        ]
+
+html4_transitional_elements = [
+        'A', 'ABBR', 'ACRONYM', 'ADDRESS', 'APPLET', 'AREA', 'B', 'BASE', 'BASEFONT', 'BDO', 'BIG', 'BLOCKQUOTE', 'BODY', 'BR', 'BUTTON',
+        'CAPTION', 'CENTER', 'CITE', 'CODE', 'COL', 'COLGROUP', 'DD', 'DEL', 'DFN', 'DIR', 'DIV', 'DL', 'DT', 'EM', 'FIELDSET', 'FONT',
+        'FORM', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'HEAD', 'HR', 'HTML', 'I', 'IFRAME', 'IMG', 'INPUT', 'INS', 'ISINDEX', 'KBD', 'LABEL',
+        'LEGEND', 'LI', 'LINK', 'MAP', 'MENU', 'META', 'NOSCRIPT', 'OBJECT', 'OL', 'OPTGROUP', 'OPTION', 'P', 'PARAM', 'PRE', 'Q', 'S',
+        'SAMP', 'SCRIPT', 'SELECT', 'SMALL', 'SPAN', 'STRIKE', 'STRONG', 'STYLE', 'SUB', 'SUP', 'TABLE', 'TBODY', 'TD', 'TEXTAREA',
+        'TFOOT', 'TH', 'THEAD', 'TITLE', 'TR', 'TT', 'U', 'UL', 'VAR',
+        ]
+
+html5_elements = [
+        'A', 'ABBR', 'ADDRESS', 'AREA', 'ARTICLE', 'ASIDE', 'AUDIO', 'B', 'BASE', 'BDI', 'BDO', 'BLOCKQUOTE', 'BODY', 'BR', 'BUTTON',
+        'CANVAS', 'CAPTION', 'CITE', 'CODE', 'COL', 'COLGROUP', 'COMMAND', 'DATALIST', 'DD', 'DEL', 'DETAILS', 'DFN', 'DIV', 'DL', 'DT',
+        'EM', 'EMBED', 'FIELDSET', 'FIGCAPTION', 'FIGURE', 'FORM', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'HEAD', 'HEADER', 'HGROUP', 'HR',
+        'HTML', 'I', 'IMG', 'INPUT', 'INS', 'KBD', 'LABEL', 'LEGEND', 'LI', 'LINK', 'MAP', 'MARK', 'MENU', 'META', 'METER', 'NAV',
+        'NOSCRIPT', 'OBJECT', 'OL', 'OPTGROUP', 'OPTION', 'P', 'PARAM', 'PRE', 'PROGRESS', 'Q', 'RP', 'RT', 'RUBY', 'S', 'SAMP', 'SCRIPT',
+        'SECTION', 'SELECT', 'SMALL', 'SOURCE', 'SPAN', 'STRONG', 'STYLE', 'SUB', 'SUMMARY', 'SUP', 'TABLE', 'TBODY', 'TD', 'TEXTAREA',
+        'TFOOT', 'TH', 'THEAD', 'TIME', 'TITLE', 'TR', 'TRACK', 'U', 'UL', 'VAR', 'VIDEO', 'WBR',
+        ]
+html_void_elements = ['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'keygen', 'link', 'meta', 'param', 'source', 'track', 'wbr']
 
 def join(attrs, data, trailing=''):
     "create attribute and string portion of Element"

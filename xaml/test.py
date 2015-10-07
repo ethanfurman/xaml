@@ -11,13 +11,47 @@ tt = TokenType
 class TestML(TestCase):
 
     def test_xml(self):
-        meta = ML('<?xml version="1.0" encoding="utf-8"?>')
-        self.assertEqual(str(meta), '<?xml version="1.0"?>\n')
-        self.assertEqual(meta.bytes(), '<?xml version="1.0" encoding="utf-8"?>\n'.encode('utf-8'))
+        for values in (
+                {'type':'xml'},
+                {'type':'xml', 'version':'1.0'},
+                {'type':'xml', 'version':'1.0', 'encoding':'utf-8'},
+                ):
+            meta = ML(values)
+            self.assertEqual(str(meta), '<?xml version="1.0"?>\n')
+            self.assertEqual(meta.bytes(), '<?xml version="1.0" encoding="utf-8"?>\n'.encode('utf-8'))
+
+    def test_html5(self):
+        for values in (
+                {'type':'html'},
+                {'type':'html', 'version':'5'},
+                ):
+            meta = ML(values)
+            self.assertEqual(str(meta), '<!DOCTYPE html>\n')
+            self.assertEqual(meta.bytes(), '<!DOCTYPE html>\n'.encode('utf-8'))
+
+    def test_html4_strict(self):
+        for values in (
+                {'type':'html', 'version':'4'},
+                {'type':'html', 'version':'4-strict'},
+                ): 
+            meta = ML(values)
+            self.assertEqual(str(meta), '<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">\n')
+            self.assertEqual(meta.bytes(), '<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">\n'.encode('utf-8'))
+
+    def test_html4_transitional(self):
+        for values in (
+                {'type':'html', 'version':'4-transitional'},
+                ):
+            meta = ML(values)
+            self.assertEqual(str(meta), '<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">\n')
+            self.assertEqual(meta.bytes(), '<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">\n'.encode('utf-8'))
 
 class TestXaml(TestCase):
 
     maxDiff = None
+
+    def test_empty_doc(self):
+        Xaml('')
 
     def test_bad_meta_type(self):
         input = ('''!!! xaml1.0''')
@@ -641,6 +675,129 @@ class TestXaml(TestCase):
             '''    <field name="partner_ids"/>''',
             '''</div>''',
             '''<field name="subject"/>''',
+            ])
+        for exp_line, xaml_line in zip(expected.split('\n'), Xaml(input).document.string().split('\n')):
+            self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
+
+    def test_html_no_head(self):
+        input = '\n'.join([
+            '''!!! html5''',
+            '''%html''',
+            '''    %body''',
+            '''        %div .container''',
+            '''            This is a test of something.''',
+            ])
+        expected = '\n'.join([
+            '''<!DOCTYPE html>''',
+            '''<html>''',
+            '''    <head>''',
+            '''        <meta charset="utf-8">''',
+            '''    </head>''',
+            '''    <body>''',
+            '''        <div class="container">''',
+            '''            This is a test of something.''',
+            '''        </div>''',
+            '''    </body>''',
+            '''</html>''',
+            ])
+        for exp_line, xaml_line in zip(expected.split('\n'), Xaml(input).document.string().split('\n')):
+            self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
+
+    def test_html_empty_head(self):
+        input = '\n'.join([
+            '''!!! html5''',
+            '''%html''',
+            '''    %head''',
+            '''    %body''',
+            '''        %div .container''',
+            '''            This is a test of something.''',
+            ])
+        expected = '\n'.join([
+            '''<!DOCTYPE html>''',
+            '''<html>''',
+            '''    <head>''',
+            '''        <meta charset="utf-8">''',
+            '''    </head>''',
+            '''    <body>''',
+            '''        <div class="container">''',
+            '''            This is a test of something.''',
+            '''        </div>''',
+            '''    </body>''',
+            '''</html>''',
+            ])
+        for exp_line, xaml_line in zip(expected.split('\n'), Xaml(input).document.string().split('\n')):
+            self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
+
+    def test_html_head(self):
+        input = '\n'.join([
+            '''!!! html5''',
+            '''%html''',
+            '''    %head''',
+            '''        %title: my cool app!''',
+            '''    %body''',
+            '''        %div .container''',
+            '''            This is a test of something.''',
+            ])
+        expected = '\n'.join([
+            '''<!DOCTYPE html>''',
+            '''<html>''',
+            '''    <head>''',
+            '''        <meta charset="utf-8">''',
+            '''        <title>my cool app!</title>''',
+            '''    </head>''',
+            '''    <body>''',
+            '''        <div class="container">''',
+            '''            This is a test of something.''',
+            '''        </div>''',
+            '''    </body>''',
+            '''</html>''',
+            ])
+        for exp_line, xaml_line in zip(expected.split('\n'), Xaml(input).document.string().split('\n')):
+            self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
+
+    def test_html_void_tags(self):
+        input = '\n'.join([
+            '''!!! html5''',
+            '''%html''',
+            '''    %head''',
+            '''        %title: my cool app!''',
+            '''    %body''',
+            '''        %area: This is a test of something.''',
+            ])
+        document = Xaml(input).document
+        self.assertRaises(ValueError, document.string)
+        input = '\n'.join([
+            '''!!! html5''',
+            '''%html''',
+            '''    %head''',
+            '''        %title: my cool app!''',
+            '''    %body''',
+            '''        %area''',
+            '''            This is a test of something.''',
+            ])
+        document = Xaml(input).document
+        self.assertRaises(ValueError, document.string)
+
+    def test_xml_void_html(self):
+        input = '\n'.join([
+            '''%html''',
+            '''    %area''',
+            '''        %title: my cool app!''',
+            '''    %body''',
+            '''        %div .container''',
+            '''            This is a test of something.''',
+            ])
+        expected = '\n'.join([
+            '''<html>''',
+            '''    <area>''',
+            '''        <title>my cool app!</title>''',
+            '''    </area>''',
+            '''    <body>''',
+            '''        <div class="container">''',
+            '''            This is a test of something.''',
+            '''        </div>''',
+            '''    </body>''',
+            '''</html>''',
             ])
         for exp_line, xaml_line in zip(expected.split('\n'), Xaml(input).document.string().split('\n')):
             self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
