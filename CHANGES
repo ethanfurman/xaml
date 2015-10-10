@@ -1,3 +1,9 @@
+0.4.00
+======
+
+allow file encoding cookies in meta (!!!) lines (tested with vim)
+
+
 0.3.13
 ======
 
