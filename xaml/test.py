@@ -853,6 +853,33 @@ class TestXaml(TestCase):
         for exp_line, xaml_line in zip(expected.split('\n'), Xaml(input.encode('utf-8'), doc_type='xml').document.string().split('\n')):
             self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
             
+    def test_multi_class(self):
+        input = '\n'.join([
+            """!!! html""",
+            """%div .logo .circle""",
+            """    %img src='images/my_logo.svg' alt='logo'""",
+            ])
+        expected = '\n'.join([
+            '''<!DOCTYPE html>''',
+            '''<div class="logo circle">''',
+            '''    <img src="images/my_logo.svg" alt="logo">''',
+            '''</div>''',
+            ])
+        for exp_line, xaml_line in zip(expected.split('\n'), Xaml(input).document.string().split('\n')):
+            self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
+        input = '\n'.join([
+            """!!! html""",
+            """%div .circle .logo""",
+            """    %img src='images/my_logo.svg' alt='logo'""",
+            ])
+        expected = '\n'.join([
+            '''<!DOCTYPE html>''',
+            '''<div class="circle logo">''',
+            '''    <img src="images/my_logo.svg" alt="logo">''',
+            '''</div>''',
+            ])
+        for exp_line, xaml_line in zip(expected.split('\n'), Xaml(input).document.string().split('\n')):
+            self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
 
     # def test_valid_html4_strict(self):
     #     input = '\n'.join([

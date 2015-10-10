@@ -817,11 +817,14 @@ class Xaml(object):
             if token.type in (tt.CODE_ATTR, tt.STR_ATTR):
                 assert last_token.type is tt.ELEMENT, 'the tokenizer is busted (ATTR and last is %r [current: %r])' % (last_token, token)
                 name, value = token.payload
-                if token.type is tt.CODE_ATTR:
-                    attrs[name] = value
+                if name in attrs and name != 'class':
+                    raise ParseError('attribute %r already specified' % name)
                 if token.type is tt.STR_ATTR and token.make_safe:
                     value = self._coder(value)
-                    attrs[name] = repr(value)
+                    value = repr(value)
+                if name in attrs:
+                    value = attrs[name] + ' + u" " + ' + value
+                attrs[name] = value
             # COMMENT
             elif token.type is tt.COMMENT:
                 last_token, pending_newline = self._check_for_newline(last_token)
