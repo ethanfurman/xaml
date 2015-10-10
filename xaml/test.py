@@ -808,6 +808,52 @@ class TestXaml(TestCase):
         for exp_line, xaml_line in zip(expected.split('\n'), Xaml(input).document.string().split('\n')):
             self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
 
+    def test_html_override_html(self):
+        input = '\n'.join([
+            """!!! html""",
+            """%html""",
+            """    %body""",
+            """        %div""",
+            """            Hello!""",
+            ])
+        expected = '\n'.join([
+            '''<!DOCTYPE html>''',
+            '''<html>''',
+            '''    <head>''',
+            '''        <meta charset="utf-8">''',
+            '''    </head>''',
+            '''    <body>''',
+            '''        <div>''',
+            '''            Hello!''',
+            '''        </div>''',
+            '''    </body>''',
+            '''</html>''',
+            ])
+        for exp_line, xaml_line in zip(expected.split('\n'), Xaml(input, type='html').document.string().split('\n')):
+            self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
+
+    def test_xml_override_html(self):
+        input = '\n'.join([
+            """!!! html""",
+            """!!! vim: fileencoding=utf-8""",
+            """%html""",
+            """    %body""",
+            """        %div""",
+            """            Hello!""",
+            ])
+        expected = '\n'.join([
+            '''<html>''',
+            '''    <body>''',
+            '''        <div>''',
+            '''            Hello!''',
+            '''        </div>''',
+            '''    </body>''',
+            '''</html>''',
+            ])
+        for exp_line, xaml_line in zip(expected.split('\n'), Xaml(input.encode('utf-8'), doc_type='xml').document.string().split('\n')):
+            self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
+            
+
     # def test_valid_html4_strict(self):
     #     input = '\n'.join([
     #         '''!!!html4s''',

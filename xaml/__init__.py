@@ -705,55 +705,58 @@ class ML:
 # xaml itself {{{1
 class Xaml(object):
 
-    def __init__(self, text, _parse=True, _compile=True, **namespace):
-        # indents tracks valid indentation levels
+    def __init__(self, text, _parse=True, _compile=True, doc_type=None, **namespace):
         self._tokens = list(Tokenizer(text))
         # check if html
         i = -1
         seeking_head = False
-        while i < len(self._tokens)-1:
-            i += 1
-            token = self._tokens[i]
-            if seeking_head:
-                if token.type is not tt.ELEMENT:
-                    continue
-                elif token.payload[0] == 'body':
-                    # found body without head
-                    # insert head and charset
-                    self._tokens[i:i] = [
-                            Token(tt.ELEMENT, 'head'),
-                            Token(tt.INDENT),
-                            Token(tt.ELEMENT, 'meta'),
-                            Token(tt.STR_ATTR, ('charset', 'utf-8')),
-                            Token(tt.DEDENT),
-                            ]
-                    break
-                elif token.payload[0] == 'head':
-                    i += 1
-                    next_token = self._tokens[i]
-                    need_dedent = False
-                    if next_token.type != tt.INDENT:
+        if doc_type in (None, 'html'):
+            while i < len(self._tokens)-1:
+                i += 1
+                token = self._tokens[i]
+                if seeking_head:
+                    if token.type is not tt.ELEMENT:
+                        continue
+                    elif token.payload[0] == 'body':
+                        # found body without head
+                        # insert head and charset
                         self._tokens[i:i] = [
+                                Token(tt.ELEMENT, 'head'),
                                 Token(tt.INDENT),
-                                ]
-                        need_dedent = True
-                    i += 1
-                    self._tokens[i:i] = [
-                            Token(tt.ELEMENT, 'meta'),
-                            Token(tt.STR_ATTR, ('charset', 'utf-8')),
-                            ]
-                    i += 2
-                    if need_dedent:
-                        self._tokens[i:i] = [
+                                Token(tt.ELEMENT, 'meta'),
+                                Token(tt.STR_ATTR, ('charset', 'utf-8')),
                                 Token(tt.DEDENT),
                                 ]
+                        break
+                    elif token.payload[0] == 'head':
+                        i += 1
+                        next_token = self._tokens[i]
+                        need_dedent = False
+                        if next_token.type != tt.INDENT:
+                            self._tokens[i:i] = [
+                                    Token(tt.INDENT),
+                                    ]
+                            need_dedent = True
+                        i += 1
+                        self._tokens[i:i] = [
+                                Token(tt.ELEMENT, 'meta'),
+                                Token(tt.STR_ATTR, ('charset', 'utf-8')),
+                                ]
+                        i += 2
+                        if need_dedent:
+                            self._tokens[i:i] = [
+                                    Token(tt.DEDENT),
+                                    ]
+                        break
+                if token.type in (tt.INDENT, ):
                     break
-            if token.type in (tt.INDENT, ):
-                break
-            if token.type is tt.META and token.payload[0] == 'html':
-                # this is an html document; scan for head and/or body
-                seeking_head = True
+                if token.type is tt.META and token.payload[0] == 'html':
+                    doc_type = 'html'
+                    # this is an html document; scan for head and/or body
+                    seeking_head = True
+        self.doc_type = doc_type
         self._depth = [Token(None)]
+        # indents tracks valid indentation levels
         self._indents = Indent(level=1)
         self._coder = minimal
         self.ml = None
@@ -782,7 +785,7 @@ class Xaml(object):
         attrs = {}
         data = None
         meta = {}
-        type = 'xml'
+        doc_type = self.doc_type
         for token in self._tokens:
             # print 'depth:', ','.join(t.type.name for t in self._depth[1:])
             last_token = self._depth and self._depth[-1] or Token(None)
@@ -793,10 +796,13 @@ class Xaml(object):
                     continue
                 elif token.type not in (tt.CODE_ATTR, tt.STR_DATA, tt.CODE_DATA):
                     self.ml = ML(meta)
-                    type = self.ml.type
-                    self._coder = ml_types.get(self.ml.key)
-                    if self._coder is None:
-                        raise ParseError('markup language %r not supported' % self.ml.key)
+                    if doc_type and doc_type != self.ml.type:
+                        self.ml = None
+                    else:
+                        doc_type = self.doc_type = self.ml.type
+                        self._coder = ml_types.get(self.ml.key)
+                        if self._coder is None:
+                            raise ParseError('markup language %r not supported' % self.ml.key)
                     self._depth.pop()
                     if token.type is tt.DEDENT:
                         break
@@ -995,12 +1001,12 @@ class Xaml(object):
                 """\n""",
                 """class Element:\n""",
                 """    def __init__(self, tag, attrs={}):\n""",
-                """        if (type == 'html4s' and tag not in html4s or \n""",
-                """            type == 'html4t' and tag not in html4t or \n""",
-                """            type == 'html5' and tag not in html5):\n""",
-                """                raise ValueError('tag %s not allowed in %s' % (tag, type))\n""",
+                """        if (doc_type == 'html4s' and tag not in html4s or \n""",
+                """            doc_type == 'html4t' and tag not in html4t or \n""",
+                """            doc_type == 'html5' and tag not in html5):\n""",
+                """                raise ValueError('tag %s not allowed in %s' % (tag, doc_type))\n""",
                 """        self.tag = tag\n""",
-                """        self.void = type[:4] == 'html' and tag in html_void_elements\n""",
+                """        self.void = doc_type[:4] == 'html' and tag in html_void_elements\n""",
                 """        if self.void:\n""",
                 """            template = '%s<%s%s>'\n""",
                 """        else:\n""",
@@ -1051,7 +1057,7 @@ class Xaml(object):
         code = ''.join(pre_code+output+post_code)
         glbls = globals().copy()
         glbls.update(namespace)
-        glbls['type'] = type
+        glbls['doc_type'] = doc_type or 'xml'
         exec(''.join(global_code), glbls)
         if _compile:
             exec(code, glbls)

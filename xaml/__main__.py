@@ -17,8 +17,9 @@ Script(
         file=('xaml file to convert to xml', REQUIRED, 'f', Path),
         dest=('name of destination file [default: same name with .xaml -> .xml]', OPTION, 'd', Path),
         same_dir=('create DEST in same directory as FILE [default: current directory]', FLAG),
+        type=Spec('specify type of document to convert to', OPTION, choices=['xml','html']),
         )
-def xaml(file, dest, same_dir):
+def xaml(file, dest, same_dir, type):
     "convert FILE to xml/html/css/..."
     if dest is None:
         if file.ext == '.xaml':
@@ -28,7 +29,7 @@ def xaml(file, dest, same_dir):
     if not same_dir:
         dest = dest.filename
     with open(file) as source:
-        xaml_doc = Xaml(source.read()).document
+        xaml_doc = Xaml(source.read(), doc_type=type).document
     if display:
         print(xaml_doc.string(), verbose=0)
     else:
