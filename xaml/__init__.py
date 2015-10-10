@@ -119,26 +119,30 @@ class PPLCStream:
     current_line = None
 
     def __init__(self, text):
+        i = None
         if not isinstance(text, unicode):
-            if text.startswith(b'!!! coding:'):
-                first_line = text.find(b'\n')
-                if first_line == -1:
-                    encoding = text[11:].strip()
-                else:
-                    encoding = text[11:first_line].strip()
-                encoding = encoding.decode('ascii')
-                if encoding:
-                    try:
-                        text = text.decode(encoding).rstrip().split('\n')[1:]
-                    except LookupError:
-                        exc = sys.exc_info()[1]
-                        raise SystemExit(exc)
-                else:
-                    raise SystemExit("no encoding specified in '!!! coding: ...'")
+            encoding = 'utf-8'
+            first_lines = text[:256].split(b'\n')
+            for i, line in enumerate(first_lines):
+                if not line.startswith(b'!!!'):
+                    i = None
+                    break
+                match = re.search('coding\s*[:=]\s*([-\w.]*)', line.decode('ascii'))
+                if match:
+                    encoding = match.groups()[0]
+                    if not encoding:
+                        raise SystemExit("no encoding specified in code line")
+                    break
             else:
-                text = text.decode('ascii').rstrip().split('\n')
-        else:
-            text = text.rstrip().split('\n')
+                i = None
+            try:
+                text = text.decode(encoding)
+            except LookupError:
+                exc = sys.exc_info()[1]
+                raise SystemExit(exc)
+        text = text.rstrip().split('\n')
+        if i is not None:
+            del text[i]
         for i, line in enumerate(text):
             for ch in invalid_xml_chars:
                 if ch in line:
@@ -707,7 +711,7 @@ class Xaml(object):
         # check if html
         i = -1
         seeking_head = False
-        while i < len(self._tokens):
+        while i < len(self._tokens)-1:
             i += 1
             token = self._tokens[i]
             if seeking_head:
@@ -744,7 +748,7 @@ class Xaml(object):
                                 Token(tt.DEDENT),
                                 ]
                     break
-            if token.type in (tt.INDENT, tt.DEDENT):
+            if token.type in (tt.INDENT, ):
                 break
             if token.type is tt.META and token.payload[0] == 'html':
                 # this is an html document; scan for head and/or body

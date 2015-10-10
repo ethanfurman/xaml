@@ -51,7 +51,13 @@ class TestXaml(TestCase):
     maxDiff = None
 
     def test_empty_doc(self):
-        Xaml('')
+        Xaml('').document.bytes()
+
+    def test_mostly_empty_doc(self):
+        self.assertEqual(
+                Xaml('!!! html\n!!! vim: fileencoding=utf-8'.encode('utf-8')).document.string(),
+                '<!DOCTYPE html>\n',
+                )
 
     def test_bad_meta_type(self):
         input = ('''!!! xaml1.0''')
@@ -881,6 +887,9 @@ class TestPPLCStream(TestCase):
     def test_error(self):
         self.assertRaises(SystemExit, PPLCStream, b'!!! coding: blah')
         self.assertRaises(SystemExit, PPLCStream, b'!!! coding:')
+        self.assertRaises(SystemExit, PPLCStream, b'!!! coding:   ')
+        self.assertRaises(SystemExit, PPLCStream, b'!!! coding =   ')
+        self.assertRaises(SystemExit, PPLCStream, b'!!! coding = nope  ')
 
 
 class TestTokenizer(TestCase):
@@ -888,7 +897,7 @@ class TestTokenizer(TestCase):
     maxDiff = None
 
     def test_bad_data_on_tag(self):
-        self.assertRaises(ParseError, Xaml, '%record :')
+        self.assertRaises(ParseError, Xaml, '%record:')
 
     def test_bad_data_on_attribute(self):
         self.assertRaises(ParseError, Xaml, '@record:')
