@@ -852,6 +852,43 @@ class TestXaml(TestCase):
             ])
         for exp_line, xaml_line in zip(expected.split('\n'), Xaml(input.encode('utf-8'), doc_type='xml').document.string().split('\n')):
             self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
+
+    def test_html_default_tag(self):
+        input = '\n'.join([
+            """!!! html""",
+            """%html""",
+            """    %body""",
+            """        .container""",
+            """            Hello!""",
+            ])
+        expected = '\n'.join([
+            '''<!DOCTYPE html>''',
+            '''<html>''',
+            '''    <head>''',
+            '''        <meta charset="utf-8">''',
+            '''    </head>''',
+            '''    <body>''',
+            '''        <div class="container">''',
+            '''            Hello!''',
+            '''        </div>''',
+            '''    </body>''',
+            '''</html>''',
+            ])
+        for exp_line, xaml_line in zip(expected.split('\n'), Xaml(input).document.string().split('\n')):
+            self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
+
+    def test_html_default_tag_in_snippet(self):
+        input = '\n'.join([
+            """.container""",
+            """    Hello!""",
+            ])
+        expected = '\n'.join([
+            '''<div class="container">''',
+            '''    Hello!''',
+            '''</div>''',
+            ])
+        for exp_line, xaml_line in zip(expected.split('\n'), Xaml(input, doc_type='html').document.string().split('\n')):
+            self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
             
     def test_multi_class(self):
         input = '\n'.join([

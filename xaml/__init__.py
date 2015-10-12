@@ -276,6 +276,7 @@ class Tokenizer:
         self.indents = [0]
         self.open_parens = 0
         self.last_token = Token(None)
+        self.defaults = self.defaults.copy()
 
     def __next__(self):
         res = self.get_token()
@@ -706,14 +707,18 @@ class ML:
 class Xaml(object):
 
     def __init__(self, text, _parse=True, _compile=True, doc_type=None, **namespace):
-        self._tokens = list(Tokenizer(text))
+        iter_tokens = Tokenizer(text)
+        self._tokens = []
         # check if html
         i = -1
         seeking_head = False
+        if doc_type == 'html':
+            # 'html' override, set default now
+            iter_tokens.defaults['%'] = 'div'
         if doc_type in (None, 'html'):
-            while i < len(self._tokens)-1:
+            for token in iter_tokens:
+                self._tokens.append(token)
                 i += 1
-                token = self._tokens[i]
                 if seeking_head:
                     if token.type is not tt.ELEMENT:
                         continue
@@ -730,7 +735,8 @@ class Xaml(object):
                         break
                     elif token.payload[0] == 'head':
                         i += 1
-                        next_token = self._tokens[i]
+                        next_token = next(iter_tokens)
+                        self._tokens.append(next_token)
                         need_dedent = False
                         if next_token.type != tt.INDENT:
                             self._tokens[i:i] = [
@@ -752,8 +758,10 @@ class Xaml(object):
                     break
                 if token.type is tt.META and token.payload[0] == 'html':
                     doc_type = 'html'
+                    iter_tokens.defaults['%'] = 'div'
                     # this is an html document; scan for head and/or body
                     seeking_head = True
+        self._tokens.extend(list(iter_tokens))
         self.doc_type = doc_type
         self._depth = [Token(None)]
         # indents tracks valid indentation levels
