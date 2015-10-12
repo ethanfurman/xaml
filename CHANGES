@@ -1,3 +1,9 @@
+0.4.02
+======
+
+make the default tag be 'div' for html (it's field for 'xml')
+
+
 0.4.01
 ======
 
