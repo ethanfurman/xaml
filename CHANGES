@@ -1,3 +1,9 @@
+0.4.03
+======
+
+raise XamlError or ParseError instead of SystemExit and ValueError
+
+
 0.4.02
 ======
 
