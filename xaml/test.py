@@ -2,7 +2,7 @@ from __future__ import unicode_literals
 from unittest import TestCase, main
 from textwrap import dedent
 import xaml
-from xaml import Xaml, PPLCStream, Token, Tokenizer, TokenType, State, ML, ParseError
+from xaml import Xaml, PPLCStream, Token, Tokenizer, TokenType, State, ML, XamlError, ParseError
 
 s = State
 tt = TokenType
@@ -33,7 +33,7 @@ class TestML(TestCase):
         for values in (
                 {'type':'html', 'version':'4'},
                 {'type':'html', 'version':'4-strict'},
-                ): 
+                ):
             meta = ML(values)
             self.assertEqual(str(meta), '<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">\n')
             self.assertEqual(meta.bytes(), '<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">\n'.encode('utf-8'))
@@ -61,7 +61,7 @@ class TestXaml(TestCase):
 
     def test_bad_meta_type(self):
         input = ('''!!! xaml1.0''')
-        self.assertRaises(SystemExit, Xaml, input)
+        self.assertRaises(ParseError, Xaml, input)
 
     def test_content_xmling(self):
         result = Xaml('<howdy!>').document.string()
@@ -283,7 +283,7 @@ class TestXaml(TestCase):
         for exp_line, xaml_line in zip(expected.split(b'\n'), Xaml(input).document.bytes().split(b'\n')):
             self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
 
-    def test_indented_content(self):        
+    def test_indented_content(self):
         input = (
             '''@script\n'''
             '''    lines = text.strip().split('\\n')\n'''
@@ -306,7 +306,7 @@ class TestXaml(TestCase):
         for exp_line, xaml_line in zip(expected.split('\n'), Xaml(input).document.string().split('\n')):
             self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
 
-    def test_after_indented_content(self):        
+    def test_after_indented_content(self):
         input = (
             '''@script\n'''
             '''    lines = text.strip().split('\\n')\n'''
@@ -771,7 +771,7 @@ class TestXaml(TestCase):
             '''        %area: This is a test of something.''',
             ])
         document = Xaml(input).document
-        self.assertRaises(ValueError, document.string)
+        self.assertRaises(XamlError, document.string)
         input = '\n'.join([
             '''!!! html5''',
             '''%html''',
@@ -782,7 +782,7 @@ class TestXaml(TestCase):
             '''            This is a test of something.''',
             ])
         document = Xaml(input).document
-        self.assertRaises(ValueError, document.string)
+        self.assertRaises(XamlError, document.string)
 
     def test_xml_html_void_tags(self):
         input = '\n'.join([
@@ -889,7 +889,7 @@ class TestXaml(TestCase):
             ])
         for exp_line, xaml_line in zip(expected.split('\n'), Xaml(input, doc_type='html').document.string().split('\n')):
             self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
-            
+
     def test_multi_class(self):
         input = '\n'.join([
             """!!! html""",
@@ -942,7 +942,7 @@ class TestXaml(TestCase):
     #         ])
     #     for exp_line, xaml_line in zip(expected.split('\n'), Xaml(input).document.string().split('\n')):
     #         self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
-    # 
+    #
 
 
 class TestPPLCStream(TestCase):
@@ -995,11 +995,11 @@ class TestPPLCStream(TestCase):
         self.assertEqual(''.join(result), 'line zero\n' + sample)
 
     def test_error(self):
-        self.assertRaises(SystemExit, PPLCStream, b'!!! coding: blah')
-        self.assertRaises(SystemExit, PPLCStream, b'!!! coding:')
-        self.assertRaises(SystemExit, PPLCStream, b'!!! coding:   ')
-        self.assertRaises(SystemExit, PPLCStream, b'!!! coding =   ')
-        self.assertRaises(SystemExit, PPLCStream, b'!!! coding = nope  ')
+        self.assertRaises(XamlError, PPLCStream, b'!!! coding: blah')
+        self.assertRaises(XamlError, PPLCStream, b'!!! coding:')
+        self.assertRaises(XamlError, PPLCStream, b'!!! coding:   ')
+        self.assertRaises(XamlError, PPLCStream, b'!!! coding =   ')
+        self.assertRaises(XamlError, PPLCStream, b'!!! coding = nope  ')
 
 
 class TestTokenizer(TestCase):

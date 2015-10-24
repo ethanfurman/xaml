@@ -131,7 +131,7 @@ class PPLCStream:
                 if match:
                     encoding = match.groups()[0]
                     if not encoding:
-                        raise SystemExit("no encoding specified in code line")
+                        raise XamlError("no encoding specified in code line")
                     break
             else:
                 i = None
@@ -139,7 +139,7 @@ class PPLCStream:
                 text = text.decode(encoding)
             except LookupError:
                 exc = sys.exc_info()[1]
-                raise SystemExit(exc)
+                raise XamlError(exc)
         text = text.rstrip().split('\n')
         if i is not None:
             del text[i]
@@ -348,7 +348,7 @@ class Tokenizer:
     def _get_comment(self):
         line = self.data.get_line().rstrip()[2:]
         if line[0:1] == ' ':
-            line = line[1:]        
+            line = line[1:]
         return Token(tt.COMMENT, line)
 
     def _get_content(self):
@@ -405,7 +405,7 @@ class Tokenizer:
             return Token(tt.ELEMENT, self.defaults['%'])
         name, _ = self._get_name()
         return Token(tt.ELEMENT, name)
-    
+
     def _get_filter(self):
         name = self.data.get_line().strip()
         line = self.data.get_line()
@@ -503,7 +503,7 @@ class Tokenizer:
 
     def _get_python(self, line):
         return Token(tt.PYTHON, line.rstrip())
-    
+
     def _get_quoted(self, line, quote, ptr):
         result = [quote]
         ptr += 1
@@ -511,7 +511,7 @@ class Tokenizer:
             ch = 'a'
             line.find(quote, ptr) == 'a'
         pass
-    
+
     def _get_value(self, no_quotes=False):
         self._consume_ws()
         value = []
@@ -671,7 +671,7 @@ class ML:
 
     def __init__(self, values):
         if 'type' not in values:
-            raise ValueError('type')
+            raise XamlError('type must be specified when creating ML')
         self.encoding = values.pop('encoding', default_encoding)
         self.type = values.pop('type')
         version = values.pop('version', {'xml':'1.0', 'html':'5'}[self.type])
@@ -683,7 +683,7 @@ class ML:
         for k, v in values.items():
             self.attrs.append((k, v))
         self.attrs.append(('encoding', '"%s"' % self.encoding))
-        
+
     def __str__(self):
         leader, middle, end = self.doc_headers[self.key]
         res = [middle]
@@ -815,7 +815,7 @@ class Xaml(object):
                     if token.type is tt.DEDENT:
                         break
                 else:
-                    raise SystemExit('Token %s not allowed in/after META token' % token)
+                    raise ParseError('Token %s not allowed in/after META token' % token)
             elif last_token.type is tt.COMMENT:
                 if token.type is not tt.COMMENT:
                     output.append(self._indents.blanks + '        )\n')
@@ -953,7 +953,7 @@ class Xaml(object):
                     meta['type'] = name
                     meta['version'] = value
                 else:
-                    raise SystemExit('unknown META: %r' % ((name, value), ))
+                    raise ParseError('unknown META: %r' % ((name, value), ))
                 self._depth.append(token)
             # PYTHON
             elif token.type is tt.PYTHON:
@@ -1015,7 +1015,7 @@ class Xaml(object):
                 """        if (doc_type == 'html4s' and tag not in html4s or \n""",
                 """            doc_type == 'html4t' and tag not in html4t or \n""",
                 """            doc_type == 'html5' and tag not in html5):\n""",
-                """                raise ValueError('tag %s not allowed in %s' % (tag, doc_type))\n""",
+                """                raise XamlError('tag %s not allowed in %s' % (tag, doc_type))\n""",
                 """        self.tag = tag\n""",
                 """        self.void = doc_type[:4] == 'html' and tag in html_void_elements\n""",
                 """        if self.void:\n""",
@@ -1029,13 +1029,13 @@ class Xaml(object):
                 """        output.append(template % (indent.blanks, tag, attrs))\n""",
                 """    def __call__(self, content):\n""",
                 """        if self.void:\n""",
-                """            raise ValueError('content not allowed for void elements')\n""",
+                """            raise XamlError('content not allowed for void elements')\n""",
                 """        self.content = True\n""",
                 """        output[-1] = output[-1][:-2] + '>%s</%s>' % (content, self.tag)\n""",
                 """        return self\n""",
                 """    def __enter__(self):\n""",
                 """        if self.void:\n""",
-                """            raise ValueError('content not allowed for void elements')\n""",
+                """            raise XamlError('content not allowed for void elements')\n""",
                 """        if output and output[-1] == '':\n""",
                 """            target = -2\n""",
                 """        else:\n""",
@@ -1121,7 +1121,12 @@ class Indent:
         return self.blank * self.indent
 
 
-class ParseError(Exception):
+class XamlError(Exception):
+    '''
+    Base class for xaml errors
+    '''
+
+class ParseError(XamlError):
     '''
     Used for xaml parse errors
     '''
