@@ -5,10 +5,10 @@ long_desc = '''\
 xaml -- XML Abstract Markup Language
 ====================================
 
-an easier way for humans to write xml
+an easier way for humans to write xml and html
 
 if a line starts with any xaml component ( % @ . # $ ) that line represents
-an xml element::
+an xml/http element::
 
   - an element continues until eol, or an unquoted :
   - an element can be continued to the next line(s) using unquoted parens
@@ -17,15 +17,15 @@ elif a line starts with a ":" it is specifying how the following lines should
 be interpreted::
 
   - :markdown -> markdown text (not implemented)
-  - :css -> css styles (not implemented)
+  - :python -> python code (implemented)
 
 elif a line starts with // it is a comment, and will be converted into an
-xml comment
+xml/html comment
 
-elif a line starts with a "-" it is Python code that will be run to help
-generate the final xml output
+elif a line starts with a "-" it is a single line of Python code that will
+be run to help generate the final output
 
-else the line represents the content of an xml element
+else the line represents the content of an element
 
 xaml components::
 
@@ -54,9 +54,11 @@ Mercurial repository, wiki, and issue tracker at [2].
 requirements = ['antipathy', 'scription']
 if sys.version_info < (3, 4):
     requirements.append('enum34')
+elif sys.version_info < (3, 3):
+    raise ValueError("Xaml requires at Python 2.7 or 3.3+")
 
 setup( name='xaml',
-       version= '0.4.3',
+       version= '0.4.4',
        license='BSD License',
        description='XML Abstract Markup Language',
        long_description=long_desc,
@@ -65,13 +67,15 @@ setup( name='xaml',
        install_requires=requirements,
        author='Ethan Furman',
        author_email='ethan@stoneleaf.us',
-       url='https://bitbucket.org/stoneleaf.xaml',
+       url='https://bitbucket.org/stoneleaf/xaml',
        classifiers=[
-            'Development Status :: 3 - Alpha',
+            'Development Status :: 4 - Beta',
             'Intended Audience :: Developers',
             'License :: OSI Approved :: BSD License',
             'Programming Language :: Python :: 2.7',
             'Programming Language :: Python :: 3.3',
+            'Programming Language :: Python :: 3.4',
+            'Programming Language :: Python :: 3.5',
             'Topic :: Software Development',
             'Topic :: Text Processing :: Markup :: HTML',
             'Topic :: Text Processing :: Markup :: XML',
