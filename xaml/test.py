@@ -942,7 +942,24 @@ class TestXaml(TestCase):
     #         ])
     #     for exp_line, xaml_line in zip(expected.split('\n'), Xaml(input).document.string().split('\n')):
     #         self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
-    #
+
+    def test_style(self):
+        'no xaml processing should take place inside a <style> tag'
+        input = '\n'.join([
+            """%style""",
+            """    #image-container {""",
+            """        .display: flex;""",
+            """    }""",
+            ])
+        expected = '\n'.join([
+            '''<style>''',
+            '''    #image-container {''',
+            '''        .display: flex;''',
+            '''    }''',
+            '''</style>''',
+            ])
+        for exp_line, xaml_line in zip(expected.split('\n'), Xaml(input, doc_type='html').document.string().split('\n')):
+            self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
 
 
 class TestPPLCStream(TestCase):

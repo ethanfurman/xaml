@@ -4,7 +4,7 @@ https://bitbucket.org/stoneleaf/xaml
 
 Copyright 2015 Ethan Furman -- All rights reserved.
 """
-from __future__ import unicode_literals
+from __future__ import unicode_literals, print_function
 from enum import Enum
 import re
 import sys
@@ -277,6 +277,10 @@ class Tokenizer:
         self.open_parens = 0
         self.last_token = Token(None)
         self.defaults = self.defaults.copy()
+        # element_lock is used to suspend xaml conversion for certain element data,
+        # such as <style> (which has lines that can start with a '#'
+        self.lock_elements = ()
+        self.element_lock = None
 
     def __next__(self):
         res = self.get_token()
@@ -402,8 +406,11 @@ class Tokenizer:
         returns either the default element name, or the specified element name
         '''
         if default:
-            return Token(tt.ELEMENT, self.defaults['%'])
-        name, _ = self._get_name()
+            name = self.defaults['%']
+        else:
+            name, _ = self._get_name()
+        if name in self.lock_elements:
+            self.element_lock = self.indents[-1]
         return Token(tt.ELEMENT, name)
 
     def _get_filter(self):
@@ -581,6 +588,9 @@ class Tokenizer:
 
     def get_token(self):
         state = self.state[-1]
+        if self.element_lock is not None and (not self.indents or self.indents[-1] < self.element_lock):
+            self.element_lock = None
+            state = s.CONTENT
         if state in (s.NORMAL, s.CONTENT):
             # looking for next whatever
             while 'nothing found yet...':
@@ -597,7 +607,7 @@ class Tokenizer:
                     # dedent out of content
                     self.state.pop()
                     state = self.state[-1]
-                elif state is s.CONTENT and line[last_indent] != '%':
+                elif state is s.CONTENT and (self.element_lock or line[last_indent] != '%'):
                     # still in content
                     line = self.data.get_line()
                     self.data.push_line(line[last_indent:])
@@ -605,44 +615,44 @@ class Tokenizer:
                     return self.last_token
                 if not (line[:last_indent].lstrip() == '' and line[last_indent] != ' '):
                     self.state.append(s.DENTING)
-                    self.last_token =  self._get_denting()
+                    self.last_token = self._get_denting()
                     return self.last_token
                 else:
                     # discard white space
                     line = self.data.get_line().lstrip()
                     self.data.push_line(line)
                     ch = line[0]
-                if ch == '%':
-                    self.state.append(s.ELEMENT)
-                    self.data.get_char()
-                    self.last_token = self._get_element()
-                    return self.last_token
-                elif ch in '@#.$':
-                    self.state.append(s.ELEMENT)
-                    self.last_token = self._get_element(default=True)
-                    return self.last_token
-                elif line[:2] == '//':
-                    self.last_token = self._get_comment()
-                    return self.last_token
-                elif line[:3] == '!!!':
-                    self.state.append(tt.META)
-                    self.last_token = self._get_meta()
-                    return self.last_token
-                elif ch == ':':
-                    self.state.append(s.FILTER)
-                    self.data.get_char()
-                    self.last_token = self._get_filter()
-                    return self.last_token
-                elif ch == '-':
-                    self.data.get_char()
-                    self.last_token = self._get_python(self.data.get_line())
-                    return self.last_token
-                else:
-                    #must be random content
-                    if self.last_token.type is tt.INDENT:
-                        self.state.append(s.CONTENT)
-                    self.last_token = self._get_content()
-                    return self.last_token
+                if self.element_lock is None:
+                    if ch == '%':
+                        self.state.append(s.ELEMENT)
+                        self.data.get_char()
+                        self.last_token = self._get_element()
+                        return self.last_token
+                    elif ch in '@#.$':
+                        self.state.append(s.ELEMENT)
+                        self.last_token = self._get_element(default=True)
+                        return self.last_token
+                    elif line[:2] == '//':
+                        self.last_token = self._get_comment()
+                        return self.last_token
+                    elif line[:3] == '!!!':
+                        self.state.append(tt.META)
+                        self.last_token = self._get_meta()
+                        return self.last_token
+                    elif ch == ':':
+                        self.state.append(s.FILTER)
+                        self.data.get_char()
+                        self.last_token = self._get_filter()
+                        return self.last_token
+                    elif ch == '-':
+                        self.data.get_char()
+                        self.last_token = self._get_python(self.data.get_line())
+                        return self.last_token
+                #must be random content
+                if self.last_token.type is tt.INDENT:
+                    self.state.append(s.CONTENT)
+                self.last_token = self._get_content()
+                return self.last_token
         elif state == s.ELEMENT:
             self.last_token = self._get_attribute()
             return self.last_token
@@ -715,6 +725,7 @@ class Xaml(object):
         if doc_type == 'html':
             # 'html' override, set default now
             iter_tokens.defaults['%'] = 'div'
+            iter_tokens.lock_elements = ('style', )
         if doc_type in (None, 'html'):
             for token in iter_tokens:
                 self._tokens.append(token)
@@ -759,6 +770,7 @@ class Xaml(object):
                 if token.type is tt.META and token.payload[0] == 'html':
                     doc_type = 'html'
                     iter_tokens.defaults['%'] = 'div'
+                    iter_tokens.lock_elements = ('style', )
                     # this is an html document; scan for head and/or body
                     seeking_head = True
         self._tokens.extend(list(iter_tokens))
