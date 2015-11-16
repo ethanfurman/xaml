@@ -7,10 +7,12 @@ from xml.etree import ElementTree as ET
 import sys
 
 
-Script(
+@Script(
         encoding=('encoding of source file [default: UTF-8]', OPTION),
         display=('send output to stdout instead of to DEST', FLAG, None),
         )
+def main():
+    pass
 
 
 @Command(
