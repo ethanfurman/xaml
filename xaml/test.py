@@ -950,6 +950,8 @@ class TestXaml(TestCase):
             """    #image-container {""",
             """        .display: flex;""",
             """    }""",
+            """%body""",
+            """    <howdy!>""",
             ])
         expected = '\n'.join([
             '''<style>''',
@@ -957,6 +959,44 @@ class TestXaml(TestCase):
             '''        .display: flex;''',
             '''    }''',
             '''</style>''',
+            '''<body>''',
+            '''    &lt;howdy!&gt;''',
+            '''</body>''',
+            ])
+        for exp_line, xaml_line in zip(expected.split('\n'), Xaml(input, doc_type='html').document.string().split('\n')):
+            self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
+        input = '\n'.join([
+            """%style""",
+            """    body > ul {""",
+            """        .display: flex;""",
+            """    }""",
+            ])
+        expected = '\n'.join([
+            '''<style>''',
+            '''    body > ul {''',
+            '''        .display: flex;''',
+            '''    }''',
+            '''</style>''',
+            ])
+        for exp_line, xaml_line in zip(expected.split('\n'), Xaml(input, doc_type='html').document.string().split('\n')):
+            self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
+
+    def test_script(self):
+        'no xaml processing should take place inside a <script> tag'
+        input = '\n'.join([
+            """%script""",
+            """    if ( 5 < 7 &&""",
+            """         .3 > .5) {""",
+            """             a = false & true;""",
+            """    }""",
+            ])
+        expected = '\n'.join([
+            '''<script>''',
+            '''    if ( 5 < 7 &&''',
+            '''         .3 > .5) {''',
+            '''             a = false & true;''',
+            '''    }''',
+            '''</script>''',
             ])
         for exp_line, xaml_line in zip(expected.split('\n'), Xaml(input, doc_type='html').document.string().split('\n')):
             self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))

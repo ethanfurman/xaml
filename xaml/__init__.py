@@ -357,7 +357,7 @@ class Tokenizer:
 
     def _get_content(self):
         line = self.data.get_line().rstrip()
-        return Token(tt.CONTENT, line, make_safe=True)
+        return Token(tt.CONTENT, line, make_safe=True if self.element_lock is None else False)
 
     def _get_data(self):
         line = self.data.get_line().strip()
@@ -589,7 +589,6 @@ class Tokenizer:
     def get_token(self):
         state = self.state[-1]
         if self.element_lock is not None and (not self.indents or self.indents[-1] < self.element_lock):
-            self.element_lock = None
             state = s.CONTENT
         if state in (s.NORMAL, s.CONTENT):
             # looking for next whatever
@@ -604,9 +603,10 @@ class Tokenizer:
                 # found something, check if indentation has changed
                 last_indent = self.indents[-1]
                 if state is s.CONTENT and line[:last_indent].strip():
-                    # dedent out of content
+                    # dedent out of content and unset element_lock
                     self.state.pop()
                     state = self.state[-1]
+                    self.element_lock = None
                 elif state is s.CONTENT and (self.element_lock or line[last_indent] != '%'):
                     # still in content
                     line = self.data.get_line()
@@ -725,7 +725,7 @@ class Xaml(object):
         if doc_type == 'html':
             # 'html' override, set default now
             iter_tokens.defaults['%'] = 'div'
-            iter_tokens.lock_elements = ('style', )
+            iter_tokens.lock_elements = ('script', 'style', )
         if doc_type in (None, 'html'):
             for token in iter_tokens:
                 self._tokens.append(token)
@@ -770,7 +770,7 @@ class Xaml(object):
                 if token.type is tt.META and token.payload[0] == 'html':
                     doc_type = 'html'
                     iter_tokens.defaults['%'] = 'div'
-                    iter_tokens.lock_elements = ('style', )
+                    iter_tokens.lock_elements = ('script', 'style', )
                     # this is an html document; scan for head and/or body
                     seeking_head = True
         self._tokens.extend(list(iter_tokens))
@@ -874,7 +874,10 @@ class Xaml(object):
                     output.append(self._indents.blanks + 'Blank()\n')
                     self._append_newline()
                 value = token.payload[0]
-                output.append(self._indents.blanks + 'Content(%r)\n' % self._coder(value))
+                if token.make_safe:
+                    value = self._coder(value)
+                value = repr(value)
+                output.append(self._indents.blanks + 'Content(%s)\n' % value)
             # DATA
             elif token.type in (tt.CODE_DATA, tt.STR_DATA):
                 value ,= token.payload
