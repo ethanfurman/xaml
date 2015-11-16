@@ -58,7 +58,7 @@ elif sys.version_info < (3, 3):
     raise ValueError("Xaml requires at Python 2.7 or 3.3+")
 
 setup( name='xaml',
-       version= '0.4.4',
+       version= '0.4.5',
        license='BSD License',
        description='XML Abstract Markup Language',
        long_description=long_desc,
