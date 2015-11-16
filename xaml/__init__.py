@@ -1035,7 +1035,13 @@ class Xaml(object):
                 """        else:\n""",
                 """            template = '%s<%s%s/>'\n""",
                 """        self.content = False\n""",
-                """        attrs = ' '.join(['%s="%s"' % (k, v) for k, v in attrs.items()])\n"""
+                """        pairs = []\n""",
+                """        if 'name' in attrs:\n""",
+                """            pairs.append(('name', attrs.pop('name')))\n""",
+                """        if 'id' in attrs:\n""",
+                """            pairs.append(('id', attrs.pop('id')))\n""",
+                """        pairs.extend(sorted(attrs.items()))\n""",
+                """        attrs = ' '.join(['%s="%s"' % (k, v) for k, v in pairs])\n"""
                 """        if attrs:\n""",
                 """            attrs = ' ' + attrs\n""",
                 """        output.append(template % (indent.blanks, tag, attrs))\n""",
