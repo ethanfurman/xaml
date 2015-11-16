@@ -1,7 +1,6 @@
 from __future__ import print_function, unicode_literals
 from antipathy import Path
 from scription import *
-from string import maketrans
 from xaml import Xaml
 from xml.etree import ElementTree as ET
 import sys
@@ -141,34 +140,10 @@ def write_xaml(child, fh, level=0):
     for grandchild in child:
         write_xaml(grandchild, fh, level+1)
 
-_strip_sentinel = object()
-def translator(frm=b'', to=b'', delete=b'', keep=b'', strip=_strip_sentinel):
-    if len(to) == 1:
-        to = to * len(frm)
-    bytes_trans = maketrans(frm, to)
-    if keep is not None:
-        allchars = maketrans(b'', b'')
-        delete = allchars.translate(allchars, keep.translate(allchars, delete)+frm)
-    uni_table = {}
-    for src, dst in zip(frm, to):
-        uni_table[ord(src)] = ord(dst)
-    for chr in delete:
-        uni_table[ord(chr)] = None
-    def translate(s):
-        if isinstance(s, unicode):
-            s = s.translate(uni_table)
-            if keep is not None:
-                del_table = {}
-                for chr in set(s) - set(keep):
-                    del_table[ord(chr)] = None
-                s = s.translate(del_table)
-        else:
-            s = s.translate(bytes_trans, delete)
-        if strip is not _strip_sentinel:
-            s = s.strip(strip)
-        return s
-    return translate
-
-bad_name = translator(keep=b"""!"#$%&'()*+,/;<=>?@[\\]^`{|}~\n""")
+def bad_name(name):
+    for ch in b"""!"#$%&'()*+,/;<=>?@[\\]^`{|}~\n""":
+        if ch in name:
+            return True
+    return False
 
 Run()
