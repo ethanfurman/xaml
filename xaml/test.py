@@ -685,6 +685,27 @@ class TestXaml(TestCase):
         for exp_line, xaml_line in zip(expected.split('\n'), Xaml(input).document.string().split('\n')):
             self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
 
+    def test_html_canvas(self):
+        input = '\n'.join([
+            '''!!! html5''',
+            '''%html''',
+            '''    %body''',
+            '''        %canvas''',
+            ])
+        expected = '\n'.join([
+            '''<!DOCTYPE html>''',
+            '''<html>''',
+            '''    <head>''',
+            '''        <meta charset="utf-8">''',
+            '''    </head>''',
+            '''    <body>''',
+            '''        <canvas></canvas>''',
+            '''    </body>''',
+            '''</html>''',
+            ])
+        for exp_line, xaml_line in zip(expected.split('\n'), Xaml(input).document.string().split('\n')):
+            self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
+
     def test_html_no_head(self):
         input = '\n'.join([
             '''!!! html5''',
