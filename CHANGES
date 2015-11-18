@@ -1,3 +1,21 @@
+0.4.07
+======
+
+use open/close tags in html for non-void elements
+
+
+0.4.06
+======
+
+do not do xaml conversions inside html <script> tags
+
+
+0.4.05
+======
+
+do not do xaml conversions inside html <style> tags
+
+
 0.4.03
 ======
 
