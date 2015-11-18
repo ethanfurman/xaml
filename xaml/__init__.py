@@ -398,7 +398,6 @@ class Tokenizer:
                 return Token(tt.DEDENT)
             else:
                 self.state.pop()
-                # self.data.push_line(line[last_indent-target_indent:])
                 return Token(tt.DEDENT)
 
     def _get_element(self, default=False):
@@ -807,7 +806,6 @@ class Xaml(object):
         meta = {}
         doc_type = self.doc_type
         for token in self._tokens:
-            # print 'depth:', ','.join(t.type.name for t in self._depth[1:])
             last_token = self._depth and self._depth[-1] or Token(None)
             if last_token.type is tt.META:
                 if token.type is tt.STR_ATTR:
@@ -1042,6 +1040,8 @@ class Xaml(object):
                 """            template = '%s<%s%s/>'\n""",
                 """        self.content = False\n""",
                 """        pairs = []\n""",
+                """        if tag == 'img' and 'src' in attrs:\n""",
+                """            pairs.append(('src', attrs.pop('src')))\n""",
                 """        if 'name' in attrs:\n""",
                 """            pairs.append(('name', attrs.pop('name')))\n""",
                 """        if 'id' in attrs:\n""",
@@ -1090,11 +1090,8 @@ class Xaml(object):
                 ]
         post_code = [
                 """\n""",
-                # """    print '\\n\\n'\n"""
-                # """    print '\\n'.join(output)\n"""
                 """    return '\\n'.join(output)""",
                 ]
-        # print ''.join(pre_code+output+post_code)
         code = ''.join(pre_code+output+post_code)
         glbls = globals().copy()
         glbls.update(namespace)
@@ -1228,7 +1225,10 @@ html5 = html5_elements = [
         'SMALL', 'SOURCE', 'SPAN', 'STRONG', 'STYLE', 'SUB', 'SUMMARY', 'SUP', 'TABLE', 'TBODY', 'TD', 'TEXTAREA',
         'TFOOT', 'TH', 'THEAD', 'TIME', 'TITLE', 'TR', 'TRACK', 'U', 'UL', 'VAR', 'VIDEO', 'WBR',
         ]
-html_void_elements = ['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'keygen', 'link', 'meta', 'param', 'source', 'track', 'wbr']
+html_void_elements = [
+        'area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'keygen', 'link',
+        'meta', 'param', 'source', 'track', 'wbr',
+        ]
 
 def join(attrs, data, trailing=''):
     "create attribute and string portion of Element"

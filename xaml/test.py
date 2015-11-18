@@ -90,8 +90,7 @@ class TestXaml(TestCase):
             '''    <data/>\n'''
             '''</opentag>'''
             ).encode('utf-8')
-        for exp_line, xaml_line in zip(expected.split(b'\n'), Xaml(input).document.bytes().split(b'\n')):
-            self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
+        self.assertSequenceEqual(expected, Xaml(input).document.bytes())
 
     def test_python_filter_as_last(self):
         input = (
@@ -111,8 +110,7 @@ class TestXaml(TestCase):
             '''    </data>\n'''
             '''</opentag>'''
             ).encode('utf-8')
-        for exp_line, xaml_line in zip(expected.split(b'\n'), Xaml(input).document.bytes().split(b'\n')):
-            self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
+        self.assertSequenceEqual(expected, Xaml(input).document.bytes())
 
     def test_meta_coding(self):
         result = Xaml('!!! coding: cp1252\n!!! xml'.encode('cp1252')).document.bytes()
@@ -144,8 +142,7 @@ class TestXaml(TestCase):
             '''    </data>\n'''
             '''</opentag>'''
             ).encode('utf-8')
-        for exp_line, xaml_line in zip(expected.split(b'\n'), Xaml(input).document.bytes().split(b'\n')):
-            self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
+        self.assertSequenceEqual(expected, Xaml(input).document.bytes())
 
     def test_nested_comments(self):
         input = (
@@ -180,7 +177,7 @@ class TestXaml(TestCase):
             '''         |  testing\n'''
             '''        -->\n'''
             '''\n'''
-            '''        <record view="ir.ui.view" id="testing">\n'''
+            '''        <record id="testing" view="ir.ui.view">\n'''
             '''            <field name="name">Testing</field>\n'''
             '''            <field name="model">some.table</field>\n'''
             '''            <field name="arch" type="xml">\n'''
@@ -197,7 +194,7 @@ class TestXaml(TestCase):
             '''            </field>\n'''
             '''        </record>\n'''
             '''\n'''
-            '''        <record view="ir.actions.act_window" id="more_testing">\n'''
+            '''        <record id="more_testing" view="ir.actions.act_window">\n'''
             '''            <field name="name">More Testing</field>\n'''
             '''            <field name="res_madel">some.table</field>\n'''
             '''            <field name="view_type">form</field>\n'''
@@ -207,8 +204,7 @@ class TestXaml(TestCase):
             '''    </data>\n'''
             '''</opentag>'''
             )
-        for exp_line, xaml_line in zip(expected.split('\n'), Xaml(input).document.string().split('\n')):
-            self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
+        self.assertMultiLineEqual(expected, Xaml(input).document.string())
 
     def test_nesting_blanks(self):
         input = (
@@ -227,7 +223,7 @@ class TestXaml(TestCase):
             '''<opentag>\n'''
             '''    <data>\n'''
             '''\n'''
-            '''        <record view="ir.ui.view" id="testing">\n'''
+            '''        <record id="testing" view="ir.ui.view">\n'''
             '''            <field name="name" blah="Testing">\n'''
             '''                <form>\n'''
             '''                    <group/>\n'''
@@ -242,8 +238,7 @@ class TestXaml(TestCase):
             '''    </data>\n'''
             '''</opentag>'''
             ).encode('utf-8')
-        for exp_line, xaml_line in zip(expected.split(b'\n'), Xaml(input).document.bytes().split(b'\n')):
-            self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
+        self.assertSequenceEqual(expected, Xaml(input).document.bytes())
 
     def test_same_level_comments(self):
         input = (
@@ -264,13 +259,13 @@ class TestXaml(TestCase):
             '''<opentag>\n'''
             '''    <data>\n'''
             '''\n'''
-            '''        <record view="ir.ui.view" id="testing"/>\n'''
+            '''        <record id="testing" view="ir.ui.view"/>\n'''
             '''\n'''
             '''        <!--\n'''
             '''         |  testing\n'''
             '''        -->\n'''
             '''\n'''
-            '''        <record view="ir.actions.act_window" id="more_testing">\n'''
+            '''        <record id="more_testing" view="ir.actions.act_window">\n'''
             '''            <field name="name">More Testing</field>\n'''
             '''            <field name="res_madel">some.table</field>\n'''
             '''            <field name="view_type">form</field>\n'''
@@ -280,8 +275,7 @@ class TestXaml(TestCase):
             '''    </data>\n'''
             '''</opentag>'''
             ).encode('utf-8')
-        for exp_line, xaml_line in zip(expected.split(b'\n'), Xaml(input).document.bytes().split(b'\n')):
-            self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
+        self.assertSequenceEqual(expected, Xaml(input).document.bytes())
 
     def test_indented_content(self):
         input = (
@@ -301,10 +295,9 @@ class TestXaml(TestCase):
             '''        _, hash, ip, _ = segment[0].split()\n'''
             '''        ascii_art = '\\n'.join(segment[1:])\n'''
             '''        result[ip] = '%s\\n\\n%s' % (hash, ascii_art)\n'''
-            '''</field>\n'''
+            '''</field>'''
             )
-        for exp_line, xaml_line in zip(expected.split('\n'), Xaml(input).document.string().split('\n')):
-            self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
+        self.assertMultiLineEqual(expected, Xaml(input).document.string())
 
     def test_after_indented_content(self):
         input = (
@@ -328,10 +321,9 @@ class TestXaml(TestCase):
             '''        result[ip] = '%s\\n\\n%s' % (hash, ascii_art)\n'''
             '''</field>\n'''
             '''\n'''
-            '''<field name="something_else"/>\n'''
+            '''<field name="something_else"/>'''
             )
-        for exp_line, xaml_line in zip(expected.split('\n'), Xaml(input).document.string().split('\n')):
-            self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
+        self.assertMultiLineEqual(expected, Xaml(input).document.string())
 
 
 
@@ -358,8 +350,7 @@ class TestXaml(TestCase):
             '''    </data>\n'''
             '''</opentag>'''
             )
-        for exp_line, xaml_line in zip(expected.split('\n'), Xaml(input).document.string().split('\n')):
-            self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
+        self.assertMultiLineEqual(expected, Xaml(input).document.string())
 
     def test_random_content_with_newlines_after(self):
         input = (
@@ -386,8 +377,7 @@ class TestXaml(TestCase):
             '''    </data>\n'''
             '''</opentag>'''
             ).encode('utf-8')
-        for exp_line, xaml_line in zip(expected.split(b'\n'), Xaml(input).document.bytes().split(b'\n')):
-            self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
+        self.assertSequenceEqual(expected, Xaml(input).document.bytes())
 
     def test_random_content_with_newlines_around(self):
         input = (
@@ -416,8 +406,7 @@ class TestXaml(TestCase):
             '''    </data>\n'''
             '''</opentag>'''
             )
-        for exp_line, xaml_line in zip(expected.split('\n'), Xaml(input).document.string().split('\n')):
-            self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
+        self.assertMultiLineEqual(expected, Xaml(input).document.string())
 
     def test_random_content_with_newlines_before(self):
         input = (
@@ -444,8 +433,7 @@ class TestXaml(TestCase):
             '''    </data>\n'''
             '''</opentag>'''
             ).encode('utf-8')
-        for exp_line, xaml_line in zip(expected.split(b'\n'), Xaml(input).document.bytes().split(b'\n')):
-            self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
+        self.assertSequenceEqual(expected, Xaml(input).document.bytes())
 
     def test_simple(self):
         input = (
@@ -460,8 +448,7 @@ class TestXaml(TestCase):
             '''    </level_one>\n'''
             '''</opentag>'''
             )
-        for exp_line, xaml_line in zip(expected.split('\n'), Xaml(input).document.string().split('\n')):
-            self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
+        self.assertMultiLineEqual(expected, Xaml(input).document.string())
 
     def test_nested(self):
         input = (
@@ -499,8 +486,7 @@ class TestXaml(TestCase):
             '''    </record>\n'''
             '''</openerp>'''
             ).encode('utf-8')
-        for exp_line, xaml_line in zip(expected.split(b'\n'), Xaml(input).document.bytes().split(b'\n')):
-            self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
+        self.assertSequenceEqual(expected, Xaml(input).document.bytes())
 
     def test_meta_closing(self):
         result = Xaml('!!! xml1.0').document.bytes()
@@ -570,8 +556,7 @@ class TestXaml(TestCase):
             '''    </data>\n'''
             '''</openerp>'''
             )
-        for exp_line, xaml_line in zip(expected.split('\n'), Xaml(input).document.string().split('\n')):
-            self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
+        self.assertMultiLineEqual(expected, Xaml(input).document.string())
 
     def test_filter_2(self):
         input = (
@@ -612,7 +597,7 @@ class TestXaml(TestCase):
             '''                </tree>\n'''
             '''            </field>\n'''
             '''        </record>\n'''
-            '''        <record model="ir.actions.act_window" id="action_fnx">\n'''
+            '''        <record id="action_fnx" model="ir.actions.act_window">\n'''
             '''            <field name="name">An Action</field>\n'''
             '''            <field name="res_model">fnx.fs.folder</field>\n'''
             '''            <field name="view_type">form</field>\n'''
@@ -622,8 +607,7 @@ class TestXaml(TestCase):
             '''    </data>\n'''
             '''</openerp>'''
             ).encode('utf-8')
-        for exp_line, xaml_line in zip(expected.split(b'\n'), Xaml(input).document.bytes().split(b'\n')):
-            self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
+        self.assertSequenceEqual(expected, Xaml(input).document.bytes())
 
     def test_dynamic(self):
         order = ['first', 'second', 'third']
@@ -642,8 +626,7 @@ class TestXaml(TestCase):
             '''    </an_ordered_list>''',
             '''</the_page>''',
             ])
-        for exp_line, xaml_line in zip(expected.split('\n'), Xaml(input).document.string(order=order).split('\n')):
-            self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
+        self.assertMultiLineEqual(expected, Xaml(input).document.string(order=order))
 
     def test_tag_in_content(self):
         input = '\n'.join([
@@ -657,9 +640,9 @@ class TestXaml(TestCase):
             '''    And''',
             '''    <t t-raw="number"/>''',
             '''    more.''',
+            '''</div>''',
             ])
-        for exp_line, xaml_line in zip(expected.split('\n'), Xaml(input).document.string().split('\n')):
-            self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
+        self.assertMultiLineEqual(expected, Xaml(input).document.string())
 
     def test_content_and_tag(self):
         input = '\n'.join([
@@ -682,8 +665,7 @@ class TestXaml(TestCase):
             '''</div>''',
             '''<field name="subject"/>''',
             ])
-        for exp_line, xaml_line in zip(expected.split('\n'), Xaml(input).document.string().split('\n')):
-            self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
+        self.assertMultiLineEqual(expected, Xaml(input).document.string())
 
     def test_html_canvas(self):
         input = '\n'.join([
@@ -703,8 +685,7 @@ class TestXaml(TestCase):
             '''    </body>''',
             '''</html>''',
             ])
-        for exp_line, xaml_line in zip(expected.split('\n'), Xaml(input).document.string().split('\n')):
-            self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
+        self.assertMultiLineEqual(expected, Xaml(input).document.string())
 
     def test_html_no_head(self):
         input = '\n'.join([
@@ -727,8 +708,7 @@ class TestXaml(TestCase):
             '''    </body>''',
             '''</html>''',
             ])
-        for exp_line, xaml_line in zip(expected.split('\n'), Xaml(input).document.string().split('\n')):
-            self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
+        self.assertMultiLineEqual(expected, Xaml(input).document.string())
 
     def test_html_empty_head(self):
         input = '\n'.join([
@@ -752,8 +732,7 @@ class TestXaml(TestCase):
             '''    </body>''',
             '''</html>''',
             ])
-        for exp_line, xaml_line in zip(expected.split('\n'), Xaml(input).document.string().split('\n')):
-            self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
+        self.assertMultiLineEqual(expected, Xaml(input).document.string())
 
     def test_html_head(self):
         input = '\n'.join([
@@ -779,8 +758,7 @@ class TestXaml(TestCase):
             '''    </body>''',
             '''</html>''',
             ])
-        for exp_line, xaml_line in zip(expected.split('\n'), Xaml(input).document.string().split('\n')):
-            self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
+        self.assertMultiLineEqual(expected, Xaml(input).document.string())
 
     def test_html_void_tags(self):
         input = '\n'.join([
@@ -826,8 +804,7 @@ class TestXaml(TestCase):
             '''    </body>''',
             '''</html>''',
             ])
-        for exp_line, xaml_line in zip(expected.split('\n'), Xaml(input).document.string().split('\n')):
-            self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
+        self.assertMultiLineEqual(expected, Xaml(input).document.string())
 
     def test_html_override_html(self):
         input = '\n'.join([
@@ -850,8 +827,7 @@ class TestXaml(TestCase):
             '''    </body>''',
             '''</html>''',
             ])
-        for exp_line, xaml_line in zip(expected.split('\n'), Xaml(input, type='html').document.string().split('\n')):
-            self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
+        self.assertMultiLineEqual(expected, Xaml(input, type='html').document.string())
 
     def test_xml_override_html(self):
         input = '\n'.join([
@@ -871,8 +847,7 @@ class TestXaml(TestCase):
             '''    </body>''',
             '''</html>''',
             ])
-        for exp_line, xaml_line in zip(expected.split('\n'), Xaml(input.encode('utf-8'), doc_type='xml').document.string().split('\n')):
-            self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
+        self.assertMultiLineEqual(expected, Xaml(input.encode('utf-8'), doc_type='xml').document.string())
 
     def test_html_default_tag(self):
         input = '\n'.join([
@@ -895,8 +870,7 @@ class TestXaml(TestCase):
             '''    </body>''',
             '''</html>''',
             ])
-        for exp_line, xaml_line in zip(expected.split('\n'), Xaml(input).document.string().split('\n')):
-            self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
+        self.assertMultiLineEqual(expected, Xaml(input).document.string())
 
     def test_html_default_tag_in_snippet(self):
         input = '\n'.join([
@@ -908,8 +882,7 @@ class TestXaml(TestCase):
             '''    Hello!''',
             '''</div>''',
             ])
-        for exp_line, xaml_line in zip(expected.split('\n'), Xaml(input, doc_type='html').document.string().split('\n')):
-            self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
+        self.assertMultiLineEqual(expected, Xaml(input, doc_type='html').document.string())
 
     def test_multi_class(self):
         input = '\n'.join([
@@ -923,8 +896,7 @@ class TestXaml(TestCase):
             '''    <img src="images/my_logo.svg" alt="logo">''',
             '''</div>''',
             ])
-        for exp_line, xaml_line in zip(expected.split('\n'), Xaml(input).document.string().split('\n')):
-            self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
+        self.assertMultiLineEqual(expected, Xaml(input).document.string())
         input = '\n'.join([
             """!!! html""",
             """%div .circle .logo""",
@@ -936,8 +908,7 @@ class TestXaml(TestCase):
             '''    <img src="images/my_logo.svg" alt="logo">''',
             '''</div>''',
             ])
-        for exp_line, xaml_line in zip(expected.split('\n'), Xaml(input).document.string().split('\n')):
-            self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
+        self.assertMultiLineEqual(expected, Xaml(input).document.string())
 
     # def test_valid_html4_strict(self):
     #     input = '\n'.join([
@@ -961,8 +932,7 @@ class TestXaml(TestCase):
     #         '''    </body>''',
     #         '''</html>''',
     #         ])
-    #     for exp_line, xaml_line in zip(expected.split('\n'), Xaml(input).document.string().split('\n')):
-    #         self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
+    #    self.assertMultiLineEqual(expected, Xaml(input).document.string())
 
     def test_style(self):
         'no xaml processing should take place inside a <style> tag'
@@ -984,8 +954,7 @@ class TestXaml(TestCase):
             '''    &lt;howdy!&gt;''',
             '''</body>''',
             ])
-        for exp_line, xaml_line in zip(expected.split('\n'), Xaml(input, doc_type='html').document.string().split('\n')):
-            self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
+        self.assertMultiLineEqual(expected, Xaml(input, doc_type='html').document.string())
         input = '\n'.join([
             """%style""",
             """    body > ul {""",
@@ -999,8 +968,7 @@ class TestXaml(TestCase):
             '''    }''',
             '''</style>''',
             ])
-        for exp_line, xaml_line in zip(expected.split('\n'), Xaml(input, doc_type='html').document.string().split('\n')):
-            self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
+        self.assertMultiLineEqual(expected, Xaml(input, doc_type='html').document.string())
 
     def test_script(self):
         'no xaml processing should take place inside a <script> tag'
@@ -1019,8 +987,7 @@ class TestXaml(TestCase):
             '''    }''',
             '''</script>''',
             ])
-        for exp_line, xaml_line in zip(expected.split('\n'), Xaml(input, doc_type='html').document.string().split('\n')):
-            self.assertTrue(xml_line_match(exp_line, xaml_line), '\nexp: %s\nxml: %s' % (exp_line, xaml_line))
+        self.assertMultiLineEqual(expected, Xaml(input, doc_type='html').document.string())
 
 
 class TestPPLCStream(TestCase):
@@ -1311,16 +1278,6 @@ def xml2dict(line):
         name, value = attr.split('="')
         result[name] = value
     return result
-
-def xml_line_match(exp, xml):
-    if exp == xml:
-        return True
-    if bool(exp) + bool(xml) == 1:
-        return False
-    try:
-        return xml2dict(exp) == xml2dict(xml)
-    except Exception:
-        return False
 
 
 if __name__ == '__main__':
