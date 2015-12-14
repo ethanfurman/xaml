@@ -884,6 +884,35 @@ class TestXaml(TestCase):
             ])
         self.assertMultiLineEqual(expected, Xaml(input, doc_type='html').document.string())
 
+    def test_html_element_lock_unlocks(self):
+        input = '\n'.join([
+            """!!!html""",
+            """%html""",
+            """    %head""",
+            """        %title: Effective JavaScript: Frogger""",
+            """        %link rel='stylesheet' href='css/style.css'""",
+            """    %body""",
+            """        %script src='js/resources.js'""",
+            """        %script src='js/app.js'""",
+            """        %script src='js/engine.js'""",
+            ])
+        expected = '\n'.join([
+            '''<!DOCTYPE html>''',
+            '''<html>''',
+            '''    <head>''',
+            '''        <meta charset="utf-8">''',
+            '''        <title>Effective JavaScript: Frogger</title>''',
+            '''        <link href="css/style.css" rel="stylesheet">''',
+            '''    </head>''',
+            '''    <body>''',
+            '''        <script src="js/resources.js"></script>''',
+            '''        <script src="js/app.js"></script>''',
+            '''        <script src="js/engine.js"></script>''',
+            '''    </body>''',
+            '''</html>''',
+            ])
+        self.assertMultiLineEqual(expected, Xaml(input).document.string())
+
     def test_multi_class(self):
         input = '\n'.join([
             """!!! html""",

@@ -587,8 +587,6 @@ class Tokenizer:
 
     def get_token(self):
         state = self.state[-1]
-        if self.element_lock is not None and (not self.indents or self.indents[-1] < self.element_lock):
-            state = s.CONTENT
         if state in (s.NORMAL, s.CONTENT):
             # looking for next whatever
             while 'nothing found yet...':
@@ -606,7 +604,8 @@ class Tokenizer:
                     self.state.pop()
                     state = self.state[-1]
                     self.element_lock = None
-                elif state is s.CONTENT and (self.element_lock or line[last_indent] != '%'):
+                # check if tag in normal content
+                elif state is s.CONTENT and line[last_indent] != '%':
                     # still in content
                     line = self.data.get_line()
                     self.data.push_line(line[last_indent:])
@@ -617,6 +616,9 @@ class Tokenizer:
                     self.last_token = self._get_denting()
                     return self.last_token
                 else:
+                    # check if current line is at same indentation as line that started element_lock
+                    if (self.element_lock == last_indent and line[:last_indent].lstrip() == '' and line[last_indent] != ' '):
+                        self.element_lock = None
                     # discard white space
                     line = self.data.get_line().lstrip()
                     self.data.push_line(line)
