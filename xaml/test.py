@@ -1018,6 +1018,37 @@ class TestXaml(TestCase):
             ])
         self.assertMultiLineEqual(expected, Xaml(input, doc_type='html').document.string())
 
+    def test_script_and_content(self):
+        'script content is still script'
+        input = '\n'.join([
+            """!!! html""",
+            """%html""",
+            """    %body""",
+            """        %p""",
+            """            Awesome page""",
+            """            %script""",
+            """                document.write(" with JavaScript ");""",
+            """            is awesome""",
+            ])
+        expected = '\n'.join([
+            '''<!DOCTYPE html>''',
+            '''<html>''',
+            '''    <head>''',
+            '''        <meta charset="utf-8">''',
+            '''    </head>''',
+            '''    <body>''',
+            '''        <p>''',
+            '''            Awesome page''',
+            '''            <script>''',
+            '''                document.write(" with JavaScript ");''',
+            '''            </script>''',
+            '''            is awesome''',
+            '''        </p>''',
+            '''    </body>''',
+            '''</html>''',
+            ])
+        self.assertMultiLineEqual(expected, Xaml(input, doc_type='html').document.string())
+
 
 class TestPPLCStream(TestCase):
 
