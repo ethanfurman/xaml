@@ -1,8 +1,3 @@
-import setuptools
-from distutils.core import setup
-import sys
-
-long_desc = '''\
 xaml -- XML Abstract Markup Language
 ====================================
 
@@ -25,6 +20,8 @@ be interpreted::
 
   - :javascript -> javascript code inserted into a
                    <script type="text/javascript"> tag
+
+  - :cdata -> contained lines are placed in <![CDATA[ and ]]> tags
 
 if a line starts with // it is a comment, and will be converted into an
 xml/html comment
@@ -56,46 +53,3 @@ Mercurial repository, wiki, and issue tracker at [2].
 
 [1] http://haml.info/
 [2] https://bitbucket.org/stoneleaf/xaml
-'''
-
-requirements = ['antipathy', 'scription']
-if sys.version_info < (3, 3) and sys.version_info[:2] != (2, 7):
-    raise ValueError("Xaml requires Python 2.7 or 3.3+")
-elif sys.version_info < (3, 4):
-    requirements.append('enum34')
-
-setup( name='xaml',
-       version= '0.5.0',
-       license='BSD License',
-       description='XML Abstract Markup Language',
-       long_description=long_desc,
-       packages=['xaml'],
-       package_data={
-           'xaml': [
-               'CHANGES', 'LICENSE',
-               'doc/*',
-               'vim/*.vim', 'vim/colors/*', 'vim/syntax/*', 'vim/indent/*', 'vim/ftplugin/*',
-               ],
-           },
-       install_requires=requirements,
-       author='Ethan Furman',
-       author_email='ethan@stoneleaf.us',
-       url='https://bitbucket.org/stoneleaf/xaml',
-       entry_points={
-           'console_scripts': ['xaml = xaml.__main__:Main'],
-           },
-       classifiers=[
-            'Development Status :: 4 - Beta',
-            'Intended Audience :: Developers',
-            'License :: OSI Approved :: BSD License',
-            'Operating System :: OS Independent',
-            'Programming Language :: Python :: 2.7',
-            'Programming Language :: Python :: 3.3',
-            'Programming Language :: Python :: 3.4',
-            'Programming Language :: Python :: 3.5',
-            'Topic :: Software Development',
-            'Topic :: Text Processing :: Markup :: HTML',
-            'Topic :: Text Processing :: Markup :: XML',
-            ],
-    )
-

@@ -1,3 +1,18 @@
+0.5.00
+======
+
+BACKWARDS INCOMPATIBLE
+
+The tag element symbol has changed from % to ~ as % is used in string
+interpolation
+
+:css, :javascript, and :python blocks are now inlined as <style> and
+<script> tags
+
+<script> tags should only be used to link files as it occasionally fails
+when used instead of :javascript or :python for inline code
+
+
 0.4.08
 ======
 

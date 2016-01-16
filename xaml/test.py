@@ -70,21 +70,21 @@ class TestXaml(TestCase):
 
     def test_python_filter(self):
         input = (
-            '''%opentag\n'''
-            '''    %data\n'''
+            '''~opentag\n'''
+            '''    ~data\n'''
             '''        :python\n'''
             '''            1 & 2\n'''
             '''            5 < 9\n'''
             '''\n'''
-            '''    %data\n'''
+            '''    ~data\n'''
             )
         expected = (
             '''<opentag>\n'''
             '''    <data>\n'''
-            '''        <![CDATA[\n'''
+            '''        <script type="text/python">\n'''
             '''            1 & 2\n'''
             '''            5 < 9\n'''
-            '''        ]]>\n'''
+            '''        </script>\n'''
             '''    </data>\n'''
             '''\n'''
             '''    <data/>\n'''
@@ -94,8 +94,8 @@ class TestXaml(TestCase):
 
     def test_python_filter_as_last(self):
         input = (
-            '''%opentag\n'''
-            '''    %data\n'''
+            '''~opentag\n'''
+            '''    ~data\n'''
             '''        :python\n'''
             '''            1 & 2\n'''
             '''            5 < 9\n'''
@@ -103,10 +103,10 @@ class TestXaml(TestCase):
         expected = (
             '''<opentag>\n'''
             '''    <data>\n'''
-            '''        <![CDATA[\n'''
+            '''        <script type="text/python">\n'''
             '''            1 & 2\n'''
             '''            5 < 9\n'''
-            '''        ]]>\n'''
+            '''        </script>\n'''
             '''    </data>\n'''
             '''</opentag>'''
             ).encode('utf-8')
@@ -118,14 +118,14 @@ class TestXaml(TestCase):
         self.assertEqual(expected, result)
 
     def test_xmlify_str_attr(self):
-        result = Xaml("%Test colors='blue:days_left<=days_warn and days_left>0;red:days_left<=0;'").document.string()
+        result = Xaml("~Test colors='blue:days_left<=days_warn and days_left>0;red:days_left<=0;'").document.string()
         expected = '<Test colors="blue:days_left&lt;=days_warn and days_left&gt;0;red:days_left&lt;=0;"/>'
         self.assertEqual(expected, result)
 
     def test_comment(self):
         input = (
-            '''%opentag\n'''
-            '''    %data\n'''
+            '''~opentag\n'''
+            '''    ~data\n'''
             '''\n'''
             '''        // a random comment\n'''
             '''        // a scheduled comment\n'''
@@ -146,24 +146,24 @@ class TestXaml(TestCase):
 
     def test_nested_comments(self):
         input = (
-            '''%opentag\n'''
-            '''    %data\n'''
+            '''~opentag\n'''
+            '''    ~data\n'''
             '''\n'''
             '''        // testing\n'''
             '''\n'''
-            '''        %record view='ir.ui.view' #testing\n'''
+            '''        ~record view='ir.ui.view' #testing\n'''
             '''            @name: Testing\n'''
             '''            @model: some.table\n'''
             '''            @arch type='xml'\n'''
-            '''                %form\n'''
-            '''                    %group\n'''
+            '''                ~form\n'''
+            '''                    ~group\n'''
             '''                        @name\n'''
             '''                        @description\n'''
-            '''                    %group\n'''
+            '''                    ~group\n'''
             '''                        @price\n'''
             '''                        @year\n'''
             '''\n'''
-            '''        %record view='ir.actions.act_window' #more_testing\n'''
+            '''        ~record view='ir.actions.act_window' #more_testing\n'''
             '''            @name: More Testing\n'''
             '''            @res_madel: some.table\n'''
             '''            @view_type: form\n'''
@@ -208,16 +208,16 @@ class TestXaml(TestCase):
 
     def test_nesting_blanks(self):
         input = (
-            '''%opentag\n'''
-            '''    %data\n'''
+            '''~opentag\n'''
+            '''    ~data\n'''
             '''\n'''
-            '''        %record view='ir.ui.view' #testing\n'''
+            '''        ~record view='ir.ui.view' #testing\n'''
             '''            @name blah='Testing'\n'''
-            '''                %form\n'''
-            '''                    %group\n'''
+            '''                ~form\n'''
+            '''                    ~group\n'''
             '''\n'''
-            '''    %data noupdate='1'\n'''
-            '''         %record view='ir.ui.view'\n'''
+            '''    ~data noupdate='1'\n'''
+            '''         ~record view='ir.ui.view'\n'''
             )
         expected = (
             '''<opentag>\n'''
@@ -242,14 +242,14 @@ class TestXaml(TestCase):
 
     def test_same_level_comments(self):
         input = (
-            '''%opentag\n'''
-            '''    %data\n'''
+            '''~opentag\n'''
+            '''    ~data\n'''
             '''\n'''
-            '''        %record view='ir.ui.view' #testing\n'''
+            '''        ~record view='ir.ui.view' #testing\n'''
             '''\n'''
             '''        // testing\n'''
             '''\n'''
-            '''        %record view='ir.actions.act_window' #more_testing\n'''
+            '''        ~record view='ir.actions.act_window' #more_testing\n'''
             '''            @name: More Testing\n'''
             '''            @res_madel: some.table\n'''
             '''            @view_type: form\n'''
@@ -329,13 +329,13 @@ class TestXaml(TestCase):
 
     def test_random_content(self):
         input = (
-            '''%opentag\n'''
-            '''    %data\n'''
+            '''~opentag\n'''
+            '''    ~data\n'''
             '''\n'''
-            '''        %record #this_id\n'''
-            '''            %button #but1 $Click_Me!\n'''
+            '''        ~record #this_id\n'''
+            '''            ~button #but1 $Click_Me!\n'''
             '''            or\n'''
-            '''            %button #but2 $Cancel\n'''
+            '''            ~button #but2 $Cancel\n'''
             )
         expected = (
             '''<opentag>\n'''
@@ -354,14 +354,14 @@ class TestXaml(TestCase):
 
     def test_random_content_with_newlines_after(self):
         input = (
-            '''%opentag\n'''
-            '''    %data\n'''
+            '''~opentag\n'''
+            '''    ~data\n'''
             '''\n'''
-            '''        %record #this_id\n'''
-            '''            %button #but1 $Click_Me!\n'''
+            '''        ~record #this_id\n'''
+            '''            ~button #but1 $Click_Me!\n'''
             '''            or\n'''
             '''\n'''
-            '''            %button #but2 $Cancel\n'''
+            '''            ~button #but2 $Cancel\n'''
             )
         expected = (
             '''<opentag>\n'''
@@ -381,15 +381,15 @@ class TestXaml(TestCase):
 
     def test_random_content_with_newlines_around(self):
         input = (
-            '''%opentag\n'''
-            '''    %data\n'''
+            '''~opentag\n'''
+            '''    ~data\n'''
             '''\n'''
-            '''        %record #this_id\n'''
-            '''            %button #but1 $Click_Me!\n'''
+            '''        ~record #this_id\n'''
+            '''            ~button #but1 $Click_Me!\n'''
             '''\n'''
             '''            or\n'''
             '''\n'''
-            '''            %button #but2 $Cancel\n'''
+            '''            ~button #but2 $Cancel\n'''
             )
         expected = (
             '''<opentag>\n'''
@@ -410,14 +410,14 @@ class TestXaml(TestCase):
 
     def test_random_content_with_newlines_before(self):
         input = (
-            '''%opentag\n'''
-            '''    %data\n'''
+            '''~opentag\n'''
+            '''    ~data\n'''
             '''\n'''
-            '''        %record #this_id\n'''
-            '''            %button #but1 $Click_Me!\n'''
+            '''        ~record #this_id\n'''
+            '''            ~button #but1 $Click_Me!\n'''
             '''\n'''
             '''            or\n'''
-            '''            %button #but2 $Cancel\n'''
+            '''            ~button #but2 $Cancel\n'''
             )
         expected = (
             '''<opentag>\n'''
@@ -437,9 +437,9 @@ class TestXaml(TestCase):
 
     def test_simple(self):
         input = (
-            '''%opentag\n'''
-            '''    %level_one\n'''
-            '''        %field @code: Code goes here\n'''
+            '''~opentag\n'''
+            '''    ~level_one\n'''
+            '''        ~field @code: Code goes here\n'''
             )
         expected = (
             '''<opentag>\n'''
@@ -452,17 +452,17 @@ class TestXaml(TestCase):
 
     def test_nested(self):
         input = (
-            '''%openerp\n'''
-            '''   %record #fax_id view='ui.ir.view'\n'''
+            '''~openerp\n'''
+            '''   ~record #fax_id view='ui.ir.view'\n'''
             '''      @name: Folders\n'''
             '''      @arch type='xml'\n'''
-            '''         %form $Folders version='7.0'\n'''
-            '''            %group\n'''
-            '''               %group\n'''
+            '''         ~form $Folders version='7.0'\n'''
+            '''            ~group\n'''
+            '''               ~group\n'''
             '''                  @id invisibility='1'\n'''
             '''                  @name\n'''
             '''                  @path\n'''
-            '''               %group\n'''
+            '''               ~group\n'''
             '''                  @folder_type\n'''
             )
         expected = (
@@ -515,7 +515,7 @@ class TestXaml(TestCase):
                 )
 
     def test_element_closing(self):
-        result = Xaml('%opentag').document.bytes()
+        result = Xaml('~opentag').document.bytes()
         self.assertEqual(
                 '<opentag/>'.encode('utf-8'),
                 result,
@@ -526,14 +526,14 @@ class TestXaml(TestCase):
             '''-view = 'ir.ui.view'\n'''
             '''-folder_model = 'fnx.fs.folder'\n'''
             '''-files_model = 'fnx.fs.file'\n'''
-            '''%openerp\n'''
-            '''    %data\n'''
-            '''        %menuitem @FnxFS #fnx_file_system groups='consumer'\n'''
-            '''        %record #fnx_fs_folders_tree model=view\n'''
+            '''~openerp\n'''
+            '''    ~data\n'''
+            '''        ~menuitem @FnxFS #fnx_file_system groups='consumer'\n'''
+            '''        ~record #fnx_fs_folders_tree model=view\n'''
             '''            @name: Folders\n'''
             '''            @model: =folder_model\n'''
             '''            @arch type='xml'\n'''
-            '''                %tree $Folders version='7.0'\n'''
+            '''                ~tree $Folders version='7.0'\n'''
             '''                    @path\n'''
             '''                    @folder_type\n'''
             '''                    @description\n'''
@@ -564,18 +564,18 @@ class TestXaml(TestCase):
             '''-folder_model = 'fnx.fs.folder'\n'''
             '''-files_model = 'fnx.fs.file'\n'''
             '''-action = 'ir.actions.act_window'\n'''
-            '''%openerp\n'''
-            '''    %data\n'''
-            '''        %menuitem @FnxFS #fnx_file_system groups='consumer'\n'''
-            '''        %record #fnx_fs_folders_tree model=view\n'''
+            '''~openerp\n'''
+            '''    ~data\n'''
+            '''        ~menuitem @FnxFS #fnx_file_system groups='consumer'\n'''
+            '''        ~record #fnx_fs_folders_tree model=view\n'''
             '''            @name: Folders\n'''
             '''            @model: =folder_model\n'''
             '''            @arch type='xml'\n'''
-            '''                %tree $Folders version='7.0'\n'''
+            '''                ~tree $Folders version='7.0'\n'''
             '''                    @path\n'''
             '''                    @folder_type\n'''
             '''                    @description\n'''
-            '''        %record model=action #action_fnx\n'''
+            '''        ~record model=action #action_fnx\n'''
             '''            @name: An Action\n'''
             '''            @res_model: = folder_model\n'''
             '''            @view_type: form\n'''
@@ -612,10 +612,10 @@ class TestXaml(TestCase):
     def test_dynamic(self):
         order = ['first', 'second', 'third']
         input = '\n'.join([
-            '''%the_page''',
-            '''    %an_ordered_list''',
+            '''~the_page''',
+            '''    ~an_ordered_list''',
             '''        -for item in args.order:''',
-            '''            %number order=item''',
+            '''            ~number order=item''',
             ])
         expected = '\n'.join([
             '''<the_page>''',
@@ -630,9 +630,9 @@ class TestXaml(TestCase):
 
     def test_tag_in_content(self):
         input = '\n'.join([
-            """%div class='oe_partner oe_show_more'""",
+            """~div class='oe_partner oe_show_more'""",
             """    And""",
-            """    %t t-raw='number'""",
+            """    ~t t-raw='number'""",
             """    more.""",
             ])
         expected = '\n'.join([
@@ -646,9 +646,9 @@ class TestXaml(TestCase):
 
     def test_content_and_tag(self):
         input = '\n'.join([
-            """%div""",
-            """    %span : Followers of selected items and""",
-            """    %span : Followers of""",
+            """~div""",
+            """    ~span : Followers of selected items and""",
+            """    ~span : Followers of""",
             """        @record_name .oe_inline attrs="{'invisible':[('model', '=', False)]}" readonly='1'""",
             """        and""",
             """    @partner_ids""",
@@ -670,9 +670,9 @@ class TestXaml(TestCase):
     def test_html_canvas(self):
         input = '\n'.join([
             '''!!! html5''',
-            '''%html''',
-            '''    %body''',
-            '''        %canvas''',
+            '''~html''',
+            '''    ~body''',
+            '''        ~canvas''',
             ])
         expected = '\n'.join([
             '''<!DOCTYPE html>''',
@@ -690,9 +690,9 @@ class TestXaml(TestCase):
     def test_html_no_head(self):
         input = '\n'.join([
             '''!!! html5''',
-            '''%html''',
-            '''    %body''',
-            '''        %div .container''',
+            '''~html''',
+            '''    ~body''',
+            '''        ~div .container''',
             '''            This is a test of something.''',
             ])
         expected = '\n'.join([
@@ -713,10 +713,10 @@ class TestXaml(TestCase):
     def test_html_empty_head(self):
         input = '\n'.join([
             '''!!! html5''',
-            '''%html''',
-            '''    %head''',
-            '''    %body''',
-            '''        %div .container''',
+            '''~html''',
+            '''    ~head''',
+            '''    ~body''',
+            '''        ~div .container''',
             '''            This is a test of something.''',
             ])
         expected = '\n'.join([
@@ -737,11 +737,11 @@ class TestXaml(TestCase):
     def test_html_head(self):
         input = '\n'.join([
             '''!!! html5''',
-            '''%html''',
-            '''    %head''',
-            '''        %title: my cool app!''',
-            '''    %body''',
-            '''        %div .container''',
+            '''~html''',
+            '''    ~head''',
+            '''        ~title: my cool app!''',
+            '''    ~body''',
+            '''        ~div .container''',
             '''            This is a test of something.''',
             ])
         expected = '\n'.join([
@@ -763,21 +763,21 @@ class TestXaml(TestCase):
     def test_html_void_tags(self):
         input = '\n'.join([
             '''!!! html5''',
-            '''%html''',
-            '''    %head''',
-            '''        %title: my cool app!''',
-            '''    %body''',
-            '''        %area: This is a test of something.''',
+            '''~html''',
+            '''    ~head''',
+            '''        ~title: my cool app!''',
+            '''    ~body''',
+            '''        ~area: This is a test of something.''',
             ])
         document = Xaml(input).document
         self.assertRaises(XamlError, document.string)
         input = '\n'.join([
             '''!!! html5''',
-            '''%html''',
-            '''    %head''',
-            '''        %title: my cool app!''',
-            '''    %body''',
-            '''        %area''',
+            '''~html''',
+            '''    ~head''',
+            '''        ~title: my cool app!''',
+            '''    ~body''',
+            '''        ~area''',
             '''            This is a test of something.''',
             ])
         document = Xaml(input).document
@@ -785,11 +785,11 @@ class TestXaml(TestCase):
 
     def test_xml_html_void_tags(self):
         input = '\n'.join([
-            '''%html''',
-            '''    %area''',
-            '''        %title: my cool app!''',
-            '''    %body''',
-            '''        %div .container''',
+            '''~html''',
+            '''    ~area''',
+            '''        ~title: my cool app!''',
+            '''    ~body''',
+            '''        ~div .container''',
             '''            This is a test of something.''',
             ])
         expected = '\n'.join([
@@ -809,9 +809,9 @@ class TestXaml(TestCase):
     def test_html_override_html(self):
         input = '\n'.join([
             """!!! html""",
-            """%html""",
-            """    %body""",
-            """        %div""",
+            """~html""",
+            """    ~body""",
+            """        ~div""",
             """            Hello!""",
             ])
         expected = '\n'.join([
@@ -833,9 +833,9 @@ class TestXaml(TestCase):
         input = '\n'.join([
             """!!! html""",
             """!!! vim: fileencoding=utf-8""",
-            """%html""",
-            """    %body""",
-            """        %div""",
+            """~html""",
+            """    ~body""",
+            """        ~div""",
             """            Hello!""",
             ])
         expected = '\n'.join([
@@ -852,8 +852,8 @@ class TestXaml(TestCase):
     def test_html_default_tag(self):
         input = '\n'.join([
             """!!! html""",
-            """%html""",
-            """    %body""",
+            """~html""",
+            """    ~body""",
             """        .container""",
             """            Hello!""",
             ])
@@ -887,14 +887,14 @@ class TestXaml(TestCase):
     def test_html_element_lock_unlocks(self):
         input = '\n'.join([
             """!!!html""",
-            """%html""",
-            """    %head""",
-            """        %title: Effective JavaScript: Frogger""",
-            """        %link rel='stylesheet' href='css/style.css'""",
-            """    %body""",
-            """        %script src='js/resources.js'""",
-            """        %script src='js/app.js'""",
-            """        %script src='js/engine.js'""",
+            """~html""",
+            """    ~head""",
+            """        ~title: Effective JavaScript: Frogger""",
+            """        ~link rel='stylesheet' href='css/style.css'""",
+            """    ~body""",
+            """        ~script src='js/resources.js'""",
+            """        ~script src='js/app.js'""",
+            """        ~script src='js/engine.js'""",
             ])
         expected = '\n'.join([
             '''<!DOCTYPE html>''',
@@ -916,8 +916,8 @@ class TestXaml(TestCase):
     def test_multi_class(self):
         input = '\n'.join([
             """!!! html""",
-            """%div .logo .circle""",
-            """    %img src='images/my_logo.svg' alt='logo'""",
+            """~div .logo .circle""",
+            """    ~img src='images/my_logo.svg' alt='logo'""",
             ])
         expected = '\n'.join([
             '''<!DOCTYPE html>''',
@@ -928,8 +928,8 @@ class TestXaml(TestCase):
         self.assertMultiLineEqual(expected, Xaml(input).document.string())
         input = '\n'.join([
             """!!! html""",
-            """%div .circle .logo""",
-            """    %img src='images/my_logo.svg' alt='logo'""",
+            """~div .circle .logo""",
+            """    ~img src='images/my_logo.svg' alt='logo'""",
             ])
         expected = '\n'.join([
             '''<!DOCTYPE html>''',
@@ -942,11 +942,11 @@ class TestXaml(TestCase):
     # def test_valid_html4_strict(self):
     #     input = '\n'.join([
     #         '''!!!html4s''',
-    #         '''%html''',
-    #         '''    %head''',
-    #         '''        %title: Testing HTML 4 Strict''',
-    #         '''    %body''',
-    #         '''        %div .container''',
+    #         '''~html''',
+    #         '''    ~head''',
+    #         '''        ~title: Testing HTML 4 Strict''',
+    #         '''    ~body''',
+    #         '''        ~div .container''',
     #         '''            This is a test of something.''',
     #         ])
     #     expected = '\n'.join([
@@ -966,11 +966,11 @@ class TestXaml(TestCase):
     def test_style(self):
         'no xaml processing should take place inside a <style> tag'
         input = '\n'.join([
-            """%style""",
+            """~style""",
             """    #image-container {""",
             """        .display: flex;""",
             """    }""",
-            """%body""",
+            """~body""",
             """    <howdy!>""",
             ])
         expected = '\n'.join([
@@ -985,7 +985,7 @@ class TestXaml(TestCase):
             ])
         self.assertMultiLineEqual(expected, Xaml(input, doc_type='html').document.string())
         input = '\n'.join([
-            """%style""",
+            """~style""",
             """    body > ul {""",
             """        .display: flex;""",
             """    }""",
@@ -1002,7 +1002,7 @@ class TestXaml(TestCase):
     def test_script(self):
         'no xaml processing should take place inside a <script> tag'
         input = '\n'.join([
-            """%script""",
+            """~script""",
             """    if ( 5 < 7 &&""",
             """         .3 > .5) {""",
             """             a = false & true;""",
@@ -1022,11 +1022,11 @@ class TestXaml(TestCase):
         'script content is still script'
         input = '\n'.join([
             """!!! html""",
-            """%html""",
-            """    %body""",
-            """        %p""",
+            """~html""",
+            """    ~body""",
+            """        ~p""",
             """            Awesome page""",
-            """            %script""",
+            """            :javascript""",
             """                document.write(" with JavaScript ");""",
             """            is awesome""",
             ])
@@ -1039,7 +1039,7 @@ class TestXaml(TestCase):
             '''    <body>''',
             '''        <p>''',
             '''            Awesome page''',
-            '''            <script>''',
+            '''            <script type="text/javascript">''',
             '''                document.write(" with JavaScript ");''',
             '''            </script>''',
             '''            is awesome''',
@@ -1047,8 +1047,148 @@ class TestXaml(TestCase):
             '''    </body>''',
             '''</html>''',
             ])
-        self.assertMultiLineEqual(expected, Xaml(input, doc_type='html').document.string())
+        self.assertMultiLineEqual(expected, Xaml(input).document.string())
 
+    def test_cdata(self):
+        input = '\n'.join([
+            """-types = 'ip_map.type'""",
+            """-commands = 'ip_map.command'""",
+            """~record #command_ssh_key model=commands""",
+            """    @name: ssh_key""",
+            """    @string: SSH Key""",
+            """    @type: text""",
+            """    @sequence: 90""",
+            """    @where: local""",
+            """    @command: /usr/bin/ssh-keygen -lv -f /home/openerp/.ssh/known_hosts""",
+            """    @script""",
+            """        :cdata""",
+            """            for block in Blocks(text, 12):""",
+            """                _, hash, ip, _ = block[0].split()""",
+            """                ip = ip.split(',')[-1]""",
+            """                ascii_art = '\\n'.join(block[1:])""",
+            """                result[ip] = {cmd_name: {'value': '%s\\n\\n%s' % (hash, ascii_art)}}""",
+            ])
+        expected = '\n'.join([
+            '''<record id="command_ssh_key" model="ip_map.command">''',
+            '''    <field name="name">ssh_key</field>''',
+            '''    <field name="string">SSH Key</field>''',
+            '''    <field name="type">text</field>''',
+            '''    <field name="sequence">90</field>''',
+            '''    <field name="where">local</field>''',
+            '''    <field name="command">/usr/bin/ssh-keygen -lv -f /home/openerp/.ssh/known_hosts</field>''',
+            '''    <field name="script">''',
+            '''        <![CDATA[''',
+            '''            for block in Blocks(text, 12):''',
+            '''                _, hash, ip, _ = block[0].split()''',
+            '''                ip = ip.split(',')[-1]''',
+            '''                ascii_art = '\\n'.join(block[1:])''',
+            '''                result[ip] = {cmd_name: {'value': '%s\\n\\n%s' % (hash, ascii_art)}}''',
+            '''        ]]>''',
+            '''    </field>''',
+            '''</record>''',
+            ])
+        self.assertMultiLineEqual(expected, Xaml(input).document.string())
+
+    def test_cdata_python(self):
+        input = '\n'.join([
+            """-types = 'ip_map.type'""",
+            """-commands = 'ip_map.command'""",
+            """~record #command_ssh_key model=commands""",
+            """    @name: ssh_key""",
+            """    @string: SSH Key""",
+            """    @type: text""",
+            """    @sequence: 90""",
+            """    @where: local""",
+            """    @command: /usr/bin/ssh-keygen -lv -f /home/openerp/.ssh/known_hosts""",
+            """    @script""",
+            """        :cdata-python""",
+            """            for block in Blocks(text, 12):""",
+            """                _, hash, ip, _ = block[0].split()""",
+            """                ip = ip.split(',')[-1]""",
+            """                ascii_art = '\\n'.join(block[1:])""",
+            """                result[ip] = {cmd_name: {'value': '%s\\n\\n%s' % (hash, ascii_art)}}""",
+            ])
+        expected = '\n'.join([
+            '''<record id="command_ssh_key" model="ip_map.command">''',
+            '''    <field name="name">ssh_key</field>''',
+            '''    <field name="string">SSH Key</field>''',
+            '''    <field name="type">text</field>''',
+            '''    <field name="sequence">90</field>''',
+            '''    <field name="where">local</field>''',
+            '''    <field name="command">/usr/bin/ssh-keygen -lv -f /home/openerp/.ssh/known_hosts</field>''',
+            '''    <field name="script">''',
+            '''        <![CDATA[''',
+            '''            for block in Blocks(text, 12):''',
+            '''                _, hash, ip, _ = block[0].split()''',
+            '''                ip = ip.split(',')[-1]''',
+            '''                ascii_art = '\\n'.join(block[1:])''',
+            '''                result[ip] = {cmd_name: {'value': '%s\\n\\n%s' % (hash, ascii_art)}}''',
+            '''        ]]>''',
+            '''    </field>''',
+            '''</record>''',
+            ])
+        self.assertMultiLineEqual(expected, Xaml(input).document.string())
+
+    def test_all_filters(self):
+        input = '\n'.join([
+            """!!! html""",
+            """~html""",
+            """    ~head""",
+            """        ~title: Test Filters Page""",
+            """        ~script src='somefile.js' type='text/javascript'""",
+            """        ~link rel='stylesheet' href='anotherfile.css' type='text/css'""",
+            """        ~link href='that_file.css' type='text/css' rel='stylesheet'""",
+            """        :javascript""",
+            """            if (a < b) {""",
+            """                console.log('&');""",
+            """            }""",
+            """        :css""",
+            """            body {""",
+            """                background: #000;""",
+            """                text-align: center;""",
+            """            }""",
+            """    ~body""",
+            """        ~p""",
+            """            Awesome page""",
+            """            :javascript""",
+            """                document.write(" with JavaScript ");""",
+            """            ~script src='this_file.js'""",
+            """            is awesome""",
+            ])
+        expected = '\n'.join([
+            '''<!DOCTYPE html>''',
+            '''<html>''',
+            '''    <head>''',
+            '''        <meta charset="utf-8">''',
+            '''        <title>Test Filters Page</title>''',
+            '''        <script src="somefile.js" type="text/javascript"></script>''',
+            '''        <link href="anotherfile.css" rel="stylesheet" type="text/css">''',
+            '''        <link href="that_file.css" rel="stylesheet" type="text/css">''',
+            '''        <script type="text/javascript">''',
+            '''            if (a < b) {''',
+            '''                console.log('&');''',
+            '''            }''',
+            '''        </script>''',
+            '''        <style type="text/css">''',
+            '''            body {''',
+            '''                background: #000;''',
+            '''                text-align: center;''',
+            '''            }''',
+            '''        </style>''',
+            '''    </head>''',
+            '''    <body>''',
+            '''        <p>''',
+            '''            Awesome page''',
+            '''            <script type="text/javascript">''',
+            '''                document.write(" with JavaScript ");''',
+            '''            </script>''',
+            '''            <script src="this_file.js"></script>''',
+            '''            is awesome''',
+            '''        </p>''',
+            '''    </body>''',
+            '''</html>''',
+            ])
+        self.assertMultiLineEqual(expected, Xaml(input, doc_type='html').document.string())
 
 class TestPPLCStream(TestCase):
 
@@ -1112,17 +1252,17 @@ class TestTokenizer(TestCase):
     maxDiff = None
 
     def test_bad_data_on_tag(self):
-        self.assertRaises(ParseError, Xaml, '%record:')
+        self.assertRaises(ParseError, Xaml, '~record:')
 
     def test_bad_data_on_attribute(self):
         self.assertRaises(ParseError, Xaml, '@record:')
 
     def test_bad_tag(self):
-        self.assertRaises(ParseError, Xaml, '%7hmm')
+        self.assertRaises(ParseError, Xaml, '~7hmm')
 
     def test_parens(self):
         result = list(Tokenizer(
-            '''%opentag (\n'''
+            '''~opentag (\n'''
             '''name='value'\n'''
             ''')'''
             ))
@@ -1170,9 +1310,9 @@ class TestTokenizer(TestCase):
 
     def test_tokens_3(self):
         result = list(Tokenizer(
-            '''%opentag\n'''
-            '''    %level_one\n'''
-            '''        %field @code: Code goes here'''
+            '''~opentag\n'''
+            '''    ~level_one\n'''
+            '''        ~field @code: Code goes here'''
             ))
         self.assertEqual(
             [
@@ -1195,8 +1335,8 @@ class TestTokenizer(TestCase):
             '''!!! xml\n'''
             '''-view="ir.ui.view"\n'''
             '''-model="some_test.my_table"\n'''
-            '''%openerp\n'''
-            '''  %record #some_id model=view\n'''
+            '''~openerp\n'''
+            '''  ~record #some_id model=view\n'''
             '''    @name: Folders\n'''
             '''    @arch type="xml"\n'''
         ))
@@ -1227,17 +1367,17 @@ class TestTokenizer(TestCase):
     def test_tokens_5(self):
         result = list(xaml.Tokenizer((
             '''!!! xml\n'''
-            '''%openerp\n'''
-            '''   %record #fax_id view='ui.ir.view'\n'''
+            '''~openerp\n'''
+            '''   ~record #fax_id view='ui.ir.view'\n'''
             '''      @name: Folders\n'''
             '''      @arch type='xml'\n'''
-            '''         %form $Folders version='7.0'\n'''
-            '''            %group\n'''
-            '''               %group\n'''
+            '''         ~form $Folders version='7.0'\n'''
+            '''            ~group\n'''
+            '''               ~group\n'''
             '''                  @id invisibility='1'\n'''
             '''                  @name\n'''
             '''                  @path\n'''
-            '''               %group\n'''
+            '''               ~group\n'''
             '''                  @folder_type\n'''
         )))
         self.assertEqual(
@@ -1298,7 +1438,7 @@ class TestTokenizer(TestCase):
             )
 
     def test_string_tokens(self):
-        result = list(xaml.Tokenizer('%test_tag $This_could_be_VERY_cool!'))
+        result = list(xaml.Tokenizer('~test_tag $This_could_be_VERY_cool!'))
         self.assertEqual(
             [
                 Token(tt.ELEMENT, 'test_tag'),
@@ -1309,7 +1449,7 @@ class TestTokenizer(TestCase):
             )
 
     def test_code_data(self):
-        result = list(xaml.Tokenizer('%top_tag\n  %record_tag\n    @Setting: = a_var'))
+        result = list(xaml.Tokenizer('~top_tag\n  ~record_tag\n    @Setting: = a_var'))
         self.assertEqual(
             [
                 Token(tt.ELEMENT, 'top_tag'),

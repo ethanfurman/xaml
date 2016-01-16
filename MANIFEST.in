@@ -1,0 +1,2 @@
+recursive-include xaml/vim *.vim
+recursive-include xaml/doc *

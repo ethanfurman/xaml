@@ -1,0 +1,282 @@
+Example xaml code and xml/html they are converted into:
+
+==============================================================================
+-types = 'ip_map.type'
+-commands = 'ip_map.command'
+~record #command_ssh_key model=commands
+    @name: ssh_key
+    @string: SSH Key
+    @type: text
+    @sequence: 90
+    @where: local
+    @command: /usr/bin/ssh-keygen -lv -f /home/openerp/.ssh/known_hosts
+    @script
+        :cdata
+            for block in Blocks(text, 12):
+                _, hash, ip, _ = block[0].split()
+                ip = ip.split(',')[-1]
+                ascii_art = '\n'.join(block[1:])
+                result[ip] = {
+                    cmd_name: {'value': '~s\n\n%s' % (hash, ascii_art)}
+                    }
+------------------------------------------------------------------------------
+<record id="command_ssh_key" model="ip_map.command">
+    <field name="name">ssh_key</field>
+    <field name="string">SSH Key</field>
+    <field name="type">text</field>
+    <field name="sequence">90</field>
+    <field name="where">local</field>
+    <field name="command">/usr/bin/ssh-keygen -lv -f /home/openerp/.ssh/known_hosts</field>
+    <field name="script">
+        <![CDATA[
+            for block in Blocks(text, 12):
+                _, hash, ip, _ = block[0].split()
+                ip = ip.split(',')[-1]
+                ascii_art = '\n'.join(block[1:])
+                result[ip] = {
+                    cmd_name: {'value': '~s\n\n%s' % (hash, ascii_art)}
+                    }
+        ]]>
+    </field>
+</record>
+==============================================================================
+
+
+==============================================================================
+~record model='ir.ui.view' #form_device_type
+    @name: ip_map.type.form
+    @model: ip_map.type
+    @arch type='xml'
+        ~form $device_types version='7.0'
+            ~group
+                @type
+                @short on_change='onchange_short(short)'
+            ~label for='description' $description
+            @description nolabel='1'
+------------------------------------------------------------------------------
+<record id="form_device_type" model="ir.ui.view">
+    <field name="name">ip_map.type.form</field>
+    <field name="model">ip_map.type</field>
+    <field name="arch" type="xml">
+        <form string="device types" version="7.0">
+            <group>
+                <field name="type"/>
+                <field name="short" on_change="onchange_short(short)"/>
+            </group>
+            <label for="description" string="description"/>
+            <field name="description" nolabel="1"/>
+        </form>
+    </field>
+</record>
+==============================================================================
+
+
+==============================================================================
+!!!html
+~html
+    ~head
+        ~title: Effective JavaScript: Frogger
+        ~link rel='stylesheet' href='css/style.css'
+    ~body
+        ~script src='js/resources.js'
+        ~script src='js/app.js'
+        ~script src='js/engine.js'
+------------------------------------------------------------------------------
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <title>Effective JavaScript: Frogger</title>
+        <link href="css/style.css" rel="stylesheet">
+    </head>
+    <body>
+        <script src="js/resources.js"></script>
+        <script src="js/app.js"></script>
+        <script src="js/engine.js"></script>
+    </body>
+</html>
+==============================================================================
+
+
+==============================================================================
+!!! html
+~html
+    ~head
+        ~title: MemeMaker-Simple  
+        ~meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"
+        ~meta name="mobile-web-app-capable" content="yes"
+        ~meta name="apple-mobile-web-app-capable" content="yes"
+        ~style
+            #image-container {
+                display: flex;
+            }
+    ~body
+
+        ~div
+            ~input type="file" id="file"
+        ~div id="image-container"
+            ~canvas width="500" height="500"
+            ~div
+                ~span: Top Line:
+                ~br
+                ~input id="topLineText" type="text"
+                ~br
+                ~span: Bottom Line:
+                ~br
+                ~input id="bottomLineText" type="text"
+                ~br
+                ~button id="saveBtn": Save
+        :javascript
+            function textChangeListener (evt) {
+                var id = evt.target.id;
+                var text = evt.target.value;
+                
+                if (id == "topLineText") {
+                    window.topLineText = text;
+                } else {
+                    window.bottomLineText = text;
+                }
+                
+                redrawMeme(window.imageSrc, window.topLineText, window.bottomLineText);
+            }
+------------------------------------------------------------------------------
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <title>MemeMaker-Simple</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+        <meta name="mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <style>
+            #image-container {
+                display: flex;
+            }
+        </style>
+    </head>
+    <body>
+
+        <div>
+            <input id="file" type="file">
+        </div>
+        <div id="image-container">
+            <canvas height="500" width="500"></canvas>
+            <div>
+                <span>Top Line:</span>
+                <br>
+                <input id="topLineText" type="text">
+                <br>
+                <span>Bottom Line:</span>
+                <br>
+                <input id="bottomLineText" type="text">
+                <br>
+                <button id="saveBtn">Save</button>
+            </div>
+        </div>
+        <script type="text/javascript">
+            function textChangeListener (evt) {
+                var id = evt.target.id;
+                var text = evt.target.value;
+            
+                if (id == "topLineText") {
+                    window.topLineText = text;
+                } else {
+                    window.bottomLineText = text;
+                }
+            
+                redrawMeme(window.imageSrc, window.topLineText, window.bottomLineText);
+            }
+        </script>
+
+    </body>
+</html>
+==============================================================================
+
+
+==============================================================================
+!!!html
+~html
+    ~head
+        ~title: Stoneleaf - Front-end Ninja (in training)
+        ~meta name='viewport' content='width=device-width, initial-scale=1.0'
+        ~link href='css/main.css' type='text/css' rel='stylesheet'
+    ~body
+        ~div .grid
+            .row
+                .header-left
+                    ~img src='images/udacity_logo.svg' alt='udacity logo' .logo
+                .header-right
+                    ~h1
+                        Stoneleaf
+                    ~h3
+                        Front-end Ninja
+            ~hr .header_break
+            .row
+                ~img src='images/xml_code.png' alt='xml snippet' .col-12
+            .row
+                ~h2: Featured Work
+            .row
+                .featured
+                    ~img src='images/appify.png' alt='appify symbol'
+                    ~h2 .caps: Appify
+                    ~a href='https://github.com/udacity/Appify/': https://github.com/udacity/Appify
+                .featured
+                    ~img src='images/sunflower.png' alt='sunflower symbol'
+                    ~h2 .caps: Sunflower
+                    ~a href='https://github.com/udacity/Sunflower/': https://github.com/udacity/Sunflower
+                .featured
+                    ~img src='images/bokeh.png' alt='bokeh symbol'
+                    ~h2 .caps: Bokeh
+                    ~a href='https://github.com/udacity/Bokeh/': https://github.com/udacity/Bokeh
+------------------------------------------------------------------------------
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <title>Stoneleaf - Front-end Ninja (in training)</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link href="css/main.css" rel="stylesheet" type="text/css">
+    </head>
+    <body>
+        <div class="grid">
+            <div class="row">
+                <div class="header-left">
+                    <img src="images/udacity_logo.svg" class="logo" alt="udacity logo">
+                </div>
+                <div class="header-right">
+                    <h1>
+                        Stoneleaf
+                    </h1>
+                    <h3>
+                        Front-end Ninja
+                    </h3>
+                </div>
+            </div>
+            <hr class="header_break">
+            <div class="row">
+                <img src="images/xml_code.png" class="col-12" alt="xml snippet">
+            </div>
+            <div class="row">
+                <h2>Featured Work</h2>
+            </div>
+            <div class="row">
+                <div class="featured">
+                    <img src="images/appify.png" alt="appify symbol">
+                    <h2 class="caps">Appify</h2>
+                    <a href="https://github.com/udacity/Appify/">https://github.com/udacity/Appify</a>
+                </div>
+                <div class="featured">
+                    <img src="images/sunflower.png" alt="sunflower symbol">
+                    <h2 class="caps">Sunflower</h2>
+                    <a href="https://github.com/udacity/Sunflower/">https://github.com/udacity/Sunflower</a>
+                </div>
+                <div class="featured">
+                    <img src="images/bokeh.png" alt="bokeh symbol">
+                    <h2 class="caps">Bokeh</h2>
+                    <a href="https://github.com/udacity/Bokeh/">https://github.com/udacity/Bokeh</a>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>
+==============================================================================

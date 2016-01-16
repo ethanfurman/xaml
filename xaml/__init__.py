@@ -14,7 +14,7 @@ import unicodedata
 __all__ = ['Xaml', ]
 __metaclass__ = type
 
-version = 0, 4, 8
+version = 0, 5, 0
 
 module = globals()
 
@@ -263,7 +263,7 @@ class Token:
 class Tokenizer:
 
     defaults = {
-            '%' : 'field',
+            '~' : 'field',
             '@' : 'name',
             '.' : 'class',
             '#' : 'id',
@@ -404,8 +404,9 @@ class Tokenizer:
         '''
         returns either the default element name, or the specified element name
         '''
+        # save line, just in case
         if default:
-            name = self.defaults['%']
+            name = self.defaults['~']
         else:
             name, _ = self._get_name()
         if name in self.lock_elements:
@@ -605,7 +606,7 @@ class Tokenizer:
                     state = self.state[-1]
                     self.element_lock = None
                 # check if tag in normal content
-                elif state is s.CONTENT and line[last_indent] != '%':
+                elif state is s.CONTENT and line[last_indent] not in '~:':
                     # still in content
                     line = self.data.get_line()
                     self.data.push_line(line[last_indent:])
@@ -624,7 +625,7 @@ class Tokenizer:
                     self.data.push_line(line)
                     ch = line[0]
                 if self.element_lock is None:
-                    if ch == '%':
+                    if ch == '~':
                         self.state.append(s.ELEMENT)
                         self.data.get_char()
                         self.last_token = self._get_element()
@@ -725,7 +726,7 @@ class Xaml(object):
         seeking_head = False
         if doc_type == 'html':
             # 'html' override, set default now
-            iter_tokens.defaults['%'] = 'div'
+            iter_tokens.defaults['~'] = 'div'
             iter_tokens.lock_elements = ('script', 'style', )
         if doc_type in (None, 'html'):
             for token in iter_tokens:
@@ -770,7 +771,7 @@ class Xaml(object):
                     break
                 if token.type is tt.META and token.payload[0] == 'html':
                     doc_type = 'html'
-                    iter_tokens.defaults['%'] = 'div'
+                    iter_tokens.defaults['~'] = 'div'
                     iter_tokens.lock_elements = ('script', 'style', )
                     # this is an html document; scan for head and/or body
                     seeking_head = True
@@ -932,15 +933,52 @@ class Xaml(object):
                 self._depth.append(token)
             # FILTER
             elif token.type is tt.FILTER:
+                last_token, pending_newline = self._check_for_newline(last_token)
+                if last_token.type is tt.ELEMENT:
+                    # close previous element
+                    output[-1] += join(attrs, data)
+                    attrs = {}
+                    data = None
+                    self._depth.pop()
+                if pending_newline:
+                    output.append(self._indents.blanks + 'Blank()\n')
+                    self._append_newline()
                 name, lines = token.payload
+                pieces = name.split()
+                blank = self._indents.blanks
+                if len(pieces) > 1:
+                    name = pieces[0]
+                    for string in pieces[1:]:
+                        key, value = string.split('=', 1)
+                        attrs[key] = value
+                if name[:6] in ('cdata', 'cdata-'):
+                    name = name[:5]
                 if name == 'python':
-                    blank = self._indents.blanks
+                    if 'type' not in attrs:
+                        attrs['type'] = u'text/python'
+                    output.append(blank + 'with Element(u"script", attrs=%r):\n' % attrs)
+                    for line in textwrap.dedent(lines).strip().split('\n'):
+                        output.append(blank + '    Content(%r)\n' % line)
+                elif name == 'javascript':
+                    if 'type' not in attrs:
+                        attrs['type'] = u'text/javascript'
+                    output.append(blank + 'with Element(u"script", attrs=%r):\n' % attrs)
+                    for line in textwrap.dedent(lines).strip().split('\n'):
+                        output.append(blank + '    Content(%r)\n' % line)
+                elif name == 'css':
+                    if 'type' not in attrs:
+                        attrs['type'] = u'text/css'
+                    output.append(blank + 'with Element(u"style", attrs=%r):\n' % attrs)
+                    for line in textwrap.dedent(lines).strip().split('\n'):
+                        output.append(blank + '    Content(%r)\n' % line)
+                elif name == 'cdata':
                     output.append(blank + 'CData(\n')
                     for line in textwrap.dedent(lines).strip().split('\n'):
                         output.append(blank + '    %r,\n' % line)
                     output.append(blank + ')\n')
                 else:
                     raise ParseError('unknown filter: %r' % name)
+                attrs = {}
             # INDENT
             elif token.type is tt.INDENT:
                 last_token, pending_newline = self._check_for_newline(last_token)
