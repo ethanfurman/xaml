@@ -29,12 +29,14 @@ def xaml(file, dest, same_dir, type):
             dest = file
     if not same_dir:
         dest = dest.filename
+    print('converting %s' % (file, ))
     with open(file) as source:
         xaml_doc = Xaml(source.read(), doc_type=type).document
     if display:
         print(xaml_doc.string(), verbose=0)
     else:
         dest += '.' + xaml_doc.ml.type
+        print('writing %s' % (dest, ))
         with open(dest, 'wb') as target:
             target.write(xaml_doc.bytes())
 
@@ -98,7 +100,7 @@ def write_xaml(child, fh, level=0):
         line[0] += '@' + name
         name = None
     else:
-        line[0] += '%' + child.tag
+        line[0] += '~' + child.tag
     if name:
         if bad_name(name) or ' ' in name:
             line.append('name=%r' % name)
