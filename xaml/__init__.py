@@ -1135,6 +1135,8 @@ class Xaml(object):
         glbls.update(namespace)
         glbls['doc_type'] = doc_type or 'xml'
         exec(''.join(global_code), glbls)
+        if self.ml is None:
+            self.ml = ML({'type': 'xml'})
         if _compile:
             exec(code, glbls)
             return XamlDoc(self.ml, code, glbls['generate'])
