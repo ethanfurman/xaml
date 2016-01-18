@@ -14,7 +14,7 @@ import unicodedata
 __all__ = ['Xaml', ]
 __metaclass__ = type
 
-version = 0, 5, 0
+version = 0, 5, 1
 
 module = globals()
 
@@ -532,7 +532,7 @@ class Tokenizer:
         while 'collecting value':
             if ch is None:
                 if quote:
-                    raise ParseError(self.date.line, 'unclosed quote while collecting value for %r: %r' % (''.join(value), ch))
+                    raise ParseError(self.data.line, 'unclosed quote while collecting value for %r: %r' % (''.join(value), ch))
                 break
             if ch == quote:
                 # skip past quote and finish
@@ -598,13 +598,14 @@ class Tokenizer:
                     self.data.get_line()
                     self.last_token = Token(tt.BLANK_LINE)
                     return self.last_token
-                # found something, check if indentation has changed
+                # found something, check if indentation has changed and/or if element_lock is still needed
                 last_indent = self.indents[-1]
+                if self.element_lock is not None and (line[:self.element_lock].strip() or line[self.element_lock] != ' '):
+                    self.element_lock = None
                 if state is s.CONTENT and line[:last_indent].strip():
-                    # dedent out of content and unset element_lock
+                    # dedent out of content
                     self.state.pop()
                     state = self.state[-1]
-                    self.element_lock = None
                 # check if tag in normal content
                 elif state is s.CONTENT and line[last_indent] not in '~:':
                     # still in content
@@ -617,9 +618,6 @@ class Tokenizer:
                     self.last_token = self._get_denting()
                     return self.last_token
                 else:
-                    # check if current line is at same indentation as line that started element_lock
-                    if (self.element_lock == last_indent and line[:last_indent].lstrip() == '' and line[last_indent] != ' '):
-                        self.element_lock = None
                     # discard white space
                     line = self.data.get_line().lstrip()
                     self.data.push_line(line)

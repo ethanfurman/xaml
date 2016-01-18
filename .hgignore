@@ -1,3 +1,9 @@
 xaml/CHANGES
 xaml/LICENSE
 xaml/README
+\.*\.swp
+.*\.xaml
+.*\.xml
+.*\.html
+.*\.old
+xaml\.egg-info.*

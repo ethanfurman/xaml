@@ -963,7 +963,7 @@ class TestXaml(TestCase):
     #         ])
     #    self.assertMultiLineEqual(expected, Xaml(input).document.string())
 
-    def test_style(self):
+    def test_style_not_escaped(self):
         'no xaml processing should take place inside a <style> tag'
         input = '\n'.join([
             """~style""",
@@ -999,7 +999,7 @@ class TestXaml(TestCase):
             ])
         self.assertMultiLineEqual(expected, Xaml(input, doc_type='html').document.string())
 
-    def test_script(self):
+    def test_script_not_escaped(self):
         'no xaml processing should take place inside a <script> tag'
         input = '\n'.join([
             """~script""",
@@ -1018,7 +1018,7 @@ class TestXaml(TestCase):
             ])
         self.assertMultiLineEqual(expected, Xaml(input, doc_type='html').document.string())
 
-    def test_script_and_content(self):
+    def test_script_in_content(self):
         'script content is still script'
         input = '\n'.join([
             """!!! html""",
@@ -1044,6 +1044,55 @@ class TestXaml(TestCase):
             '''            </script>''',
             '''            is awesome''',
             '''        </p>''',
+            '''    </body>''',
+            '''</html>''',
+            ])
+        self.assertMultiLineEqual(expected, Xaml(input).document.string())
+
+    def test_script_and_script(self):
+        'script content is still script'
+        input = '\n'.join([
+            """!!! html""",
+            """~html""",
+            """    ~body""",
+            """        ~script src='some_script.js'""",
+            """        ~script src='more_script.js'""",
+            ])
+        expected = '\n'.join([
+            '''<!DOCTYPE html>''',
+            '''<html>''',
+            '''    <head>''',
+            '''        <meta charset="utf-8">''',
+            '''    </head>''',
+            '''    <body>''',
+            '''        <script src="some_script.js"></script>''',
+            '''        <script src="more_script.js"></script>''',
+            '''    </body>''',
+            '''</html>''',
+            ])
+        self.assertMultiLineEqual(expected, Xaml(input).document.string())
+
+    def test_script_and_dedent(self):
+        'script content is still script'
+        input = '\n'.join([
+            """!!! html""",
+            """~html""",
+            """    ~body""",
+            """        ~div #main""",
+            """            ~script src='some_script.js'""",
+            """        ~div #content""",
+            ])
+        expected = '\n'.join([
+            '''<!DOCTYPE html>''',
+            '''<html>''',
+            '''    <head>''',
+            '''        <meta charset="utf-8">''',
+            '''    </head>''',
+            '''    <body>''',
+            '''        <div id="main">''',
+            '''            <script src="some_script.js"></script>''',
+            '''        </div>''',
+            '''        <div id="content"></div>''',
             '''    </body>''',
             '''</html>''',
             ])

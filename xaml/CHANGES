@@ -1,5 +1,15 @@
-0.5.00
-======
+0.5.1
+=====
+
+fixed <script> problems; :filter still recommended for inline code
+switched to Python 3.5 for packaging;
+wheel now supported for distribution;
+supporting vim files now included;
+xaml entry-point now included;
+
+
+0.5.0
+=====
 
 BACKWARDS INCOMPATIBLE
 
