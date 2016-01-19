@@ -644,6 +644,22 @@ class TestXaml(TestCase):
             ])
         self.assertMultiLineEqual(expected, Xaml(input).document.string())
 
+    def test_shortcut_in_content(self):
+        input = '\n'.join([
+            """~div class='oe_partner oe_show_more'""",
+            """    And""",
+            """    @target t-raw='number'""",
+            """    more.""",
+            ])
+        expected = '\n'.join([
+            '''<div class="oe_partner oe_show_more">''',
+            '''    And''',
+            '''    <field name="target" t-raw="number"/>''',
+            '''    more.''',
+            '''</div>''',
+            ])
+        self.assertMultiLineEqual(expected, Xaml(input).document.string())
+
     def test_content_and_tag(self):
         input = '\n'.join([
             """~div""",

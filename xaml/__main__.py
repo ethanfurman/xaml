@@ -35,7 +35,7 @@ def xaml(file, dest, same_dir, type):
     if display:
         print(xaml_doc.string(), verbose=0)
     else:
-        dest += '.' + xaml_doc.ml.type
+        dest += '.' + (xaml_doc.ml and xaml_doc.ml.type or 'xml')
         print('writing %s' % (dest, ))
         with open(dest, 'wb') as target:
             target.write(xaml_doc.bytes())
@@ -85,8 +85,6 @@ def write_xaml(child, fh, level=0):
     print('   ' * level + str(child), verbose=2)
     if level == 0:
         fh.write(b'!!! xml1.0\n')
-    elif level == 2:
-        fh.write(b'\n')
     line = ['    ' * level]
     attrib = child.attrib.copy()
     name = attrib.pop('name', None)

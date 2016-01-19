@@ -14,7 +14,7 @@ import unicodedata
 __all__ = ['Xaml', ]
 __metaclass__ = type
 
-version = 0, 5, 1
+version = 0, 5, 3
 
 module = globals()
 
@@ -602,10 +602,13 @@ class Tokenizer:
                 last_indent = self.indents[-1]
                 if self.element_lock is not None and (line[:self.element_lock].strip() or line[self.element_lock] != ' '):
                     self.element_lock = None
-                if state is s.CONTENT and line[:last_indent].strip():
-                    # dedent out of content
-                    self.state.pop()
-                    state = self.state[-1]
+                if state is s.CONTENT and not line[:last_indent].strip() and line[last_indent] != ' ':
+                        # this line is not (neccesarily) a content line
+                        pass
+                elif state is s.CONTENT and line[:last_indent].strip():
+                        # dedent out of content
+                        self.state.pop()
+                        state = self.state[-1]
                 # check if tag in normal content
                 elif state is s.CONTENT and line[last_indent] not in '~:':
                     # still in content
@@ -1135,8 +1138,6 @@ class Xaml(object):
         glbls.update(namespace)
         glbls['doc_type'] = doc_type or 'xml'
         exec(''.join(global_code), glbls)
-        if self.ml is None:
-            self.ml = ML({'type': 'xml'})
         if _compile:
             exec(code, glbls)
             return XamlDoc(self.ml, code, glbls['generate'])
