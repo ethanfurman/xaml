@@ -1,7 +1,7 @@
 from __future__ import print_function, unicode_literals
 from antipathy import Path
 from scription import *
-from xaml import Xaml
+from xaml import Xaml, version
 from xml.etree import ElementTree as ET
 import sys
 

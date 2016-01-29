@@ -19,6 +19,10 @@ be interpreted::
 
   - :css -> cascading style sheets that are inserted with a <style> tag
 
+  - :python -> python code inserted into a <script type="text/python"> tag
+               (must have a python interpreter running in the browser; e.g.
+               Brython (http://brython.info/index.html))
+
   - :javascript -> javascript code inserted into a
                    <script type="text/javascript"> tag
 
@@ -61,7 +65,7 @@ elif sys.version_info < (3, 4):
     requirements.append('enum34')
 
 setup( name='xaml',
-       version= '0.5.3',
+       version= '0.5.4',
        license='BSD License',
        description='XML Abstract Markup Language',
        long_description=long_desc,

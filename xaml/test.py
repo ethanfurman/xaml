@@ -1093,6 +1093,8 @@ class TestXaml(TestCase):
         input = '\n'.join([
             """!!! html""",
             """~html""",
+            """    ~head""",
+            """        ~script src='cool_script.js'""",
             """    ~body""",
             """        ~div #main""",
             """            ~script src='some_script.js'""",
@@ -1103,6 +1105,7 @@ class TestXaml(TestCase):
             '''<html>''',
             '''    <head>''',
             '''        <meta charset="utf-8">''',
+            '''        <script src="cool_script.js"></script>''',
             '''    </head>''',
             '''    <body>''',
             '''        <div id="main">''',
