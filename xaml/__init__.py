@@ -241,10 +241,8 @@ class Token:
             return NotImplemented
         for attr in ('type', 'payload', 'make_safe'):
             if getattr(self, attr) != getattr(other, attr):
-                break
-        else:
-            return True
-        return False
+                return False
+        return True
 
     def __ne__(self, other):
         if not isinstance(other, Token):
@@ -413,22 +411,22 @@ class Tokenizer:
             self.element_lock = self.indents[-1]
         return Token(tt.ELEMENT, name)
 
-    def _get_filter(self):
+    def _get_filter(self, leading):
         name = self.data.get_line().strip()
-        line = self.data.get_line()
-        leading = len(line) - len(line.lstrip(' '))
-        lines = [line]
+        leading += 4
+        lines = []
         while 'more lines in filter':
             line = self.data.get_line()
             if line is None:
                 break
             ws = len(line) - len(line.lstrip(' '))
-            if ws < leading:
+            if line.lstrip() and ws < leading:
                 self.data.push_line(line)
                 break
             lines.append(line)
         self.state.pop()
-        return Token(tt.FILTER, (name, ''.join(lines)))
+        token = Token(tt.FILTER, (name, ''.join(lines)), make_safe=False)
+        return token
 
     def _get_meta(self):
         self.data.push_line(self.data.get_line()[3:])
@@ -621,8 +619,10 @@ class Tokenizer:
                     self.last_token = self._get_denting()
                     return self.last_token
                 else:
-                    # discard white space
-                    line = self.data.get_line().lstrip()
+                    # discard white space, but save count
+                    complete_line = self.data.get_line()
+                    line = complete_line.lstrip()
+                    leading_space = len(complete_line) - len(line)
                     self.data.push_line(line)
                     ch = line[0]
                 if self.element_lock is None:
@@ -645,7 +645,7 @@ class Tokenizer:
                     elif ch == ':':
                         self.state.append(s.FILTER)
                         self.data.get_char()
-                        self.last_token = self._get_filter()
+                        self.last_token = self._get_filter(leading_space)
                         return self.last_token
                     elif ch == '-':
                         self.data.get_char()

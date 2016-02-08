@@ -86,7 +86,6 @@ class TestXaml(TestCase):
             '''            5 < 9\n'''
             '''        </script>\n'''
             '''    </data>\n'''
-            '''\n'''
             '''    <data/>\n'''
             '''</opentag>'''
             ).encode('utf-8')
@@ -1015,6 +1014,136 @@ class TestXaml(TestCase):
             ])
         self.assertMultiLineEqual(expected, Xaml(input, doc_type='html').document.string())
 
+    def test_css_without_blank_lines(self):
+        'absence of blank lines should not affect following elements'
+        input = '\n'.join([
+            """!!!html""",
+            """~html""",
+            """    ~head""",
+            """        :css""",
+            """            #image-container {""",
+            """                .display: flex;""",
+            """            }""",
+            """    ~body""",
+            """        <howdy!>""",
+            ])
+        expected = '\n'.join([
+            '''<!DOCTYPE html>''',
+            '''<html>''',
+            '''    <head>''',
+            '''        <meta charset="utf-8">''',
+            '''        <style type="text/css">''',
+            '''            #image-container {''',
+            '''                .display: flex;''',
+            '''            }''',
+            '''        </style>''',
+            '''    </head>''',
+            '''    <body>''',
+            '''        &lt;howdy!&gt;''',
+            '''    </body>''',
+            '''</html>''',
+            ])
+        self.assertMultiLineEqual(expected, Xaml(input, doc_type='html').document.string())
+
+    def test_css_with_blank_lines(self):
+        'presence of blank lines should not affect following elements'
+        input = '\n'.join([
+            """!!!html""",
+            """~html""",
+            """    ~head""",
+            """        :css""",
+            "",
+            """            #image-container {""",
+            """                .display: flex;""",
+            """            }""",
+            """    ~body""",
+            """        <howdy!>""",
+            ])
+        expected = '\n'.join([
+            '''<!DOCTYPE html>''',
+            '''<html>''',
+            '''    <head>''',
+            '''        <meta charset="utf-8">''',
+            '''        <style type="text/css">''',
+            '''            #image-container {''',
+            '''                .display: flex;''',
+            '''            }''',
+            '''        </style>''',
+            '''    </head>''',
+            '''    <body>''',
+            '''        &lt;howdy!&gt;''',
+            '''    </body>''',
+            '''</html>''',
+            ])
+        self.assertMultiLineEqual(expected, Xaml(input, doc_type='html').document.string())
+
+    def test_javascript_without_blank_lines(self):
+        'absence of blank lines should not affect following elements'
+        input = '\n'.join([
+            """!!!html""",
+            """~html""",
+            """    ~head""",
+            """        :javascript""",
+            """            var container = document.querySelector('.a_class');""",
+            """            for (var i=0; i < 3000; i++) {""",
+            """                console.log('this is ' + i + '!');""",
+            """            }""",
+            """    ~body""",
+            """        <howdy!>""",
+            ])
+        expected = '\n'.join([
+            '''<!DOCTYPE html>''',
+            '''<html>''',
+            '''    <head>''',
+            '''        <meta charset="utf-8">''',
+            '''        <script type="text/javascript">''',
+            '''            var container = document.querySelector('.a_class');''',
+            '''            for (var i=0; i < 3000; i++) {''',
+            '''                console.log('this is ' + i + '!');''',
+            '''            }''',
+            '''        </script>''',
+            '''    </head>''',
+            '''    <body>''',
+            '''        &lt;howdy!&gt;''',
+            '''    </body>''',
+            '''</html>''',
+            ])
+        self.assertMultiLineEqual(expected, Xaml(input, doc_type='html').document.string())
+
+    def test_javascript_with_blank_lines(self):
+        'presence of blank lines should not affect following elements'
+        input = '\n'.join([
+            """!!!html""",
+            """~html""",
+            """    ~head""",
+            """        :javascript""",
+            "",
+            """            var container = document.querySelector('.a_class');""",
+            """            for (var i=0; i < 3000; i++) {""",
+            """                console.log('this is ' + i + '!');""",
+            """            }""",
+            """    ~body""",
+            """        <howdy!>""",
+            ])
+        expected = '\n'.join([
+            '''<!DOCTYPE html>''',
+            '''<html>''',
+            '''    <head>''',
+            '''        <meta charset="utf-8">''',
+            '''        <script type="text/javascript">''',
+            '''            var container = document.querySelector('.a_class');''',
+            '''            for (var i=0; i < 3000; i++) {''',
+            '''                console.log('this is ' + i + '!');''',
+            '''            }''',
+            '''        </script>''',
+            '''    </head>''',
+            '''    <body>''',
+            '''        &lt;howdy!&gt;''',
+            '''    </body>''',
+            '''</html>''',
+            ])
+        self.assertMultiLineEqual(expected, Xaml(input, doc_type='html').document.string())
+
     def test_script_not_escaped(self):
         'no xaml processing should take place inside a <script> tag'
         input = '\n'.join([
@@ -1028,6 +1157,27 @@ class TestXaml(TestCase):
             '''<script>''',
             '''    if ( 5 < 7 &&''',
             '''         .3 > .5) {''',
+            '''             a = false & true;''',
+            '''    }''',
+            '''</script>''',
+            ])
+        self.assertMultiLineEqual(expected, Xaml(input, doc_type='html').document.string())
+
+    def test_script_not_escaped_with_blank_lines(self):
+        'no xaml processing should take place inside a <script> tag, even with blank lines present'
+        input = '\n'.join([
+            """~script""",
+            """    if ( 5 < 7 &&""",
+            "",
+            """    .3 > .5) {""",
+            """             a = false & true;""",
+            """    }""",
+            ])
+        expected = '\n'.join([
+            '''<script>''',
+            '''    if ( 5 < 7 &&''',
+            '',
+            '''    .3 > .5) {''',
             '''             a = false & true;''',
             '''    }''',
             '''</script>''',
