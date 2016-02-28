@@ -1,3 +1,16 @@
+0.5.5
+=====
+
+fix :filter processing
+
+
+0.5.2
+=====
+
+xml to xaml now uses ~ instead of %
+default type of none specified is xml
+
+
 0.5.1
 =====
 

@@ -65,7 +65,7 @@ elif sys.version_info < (3, 4):
     requirements.append('enum34')
 
 setup( name='xaml',
-       version= '0.5.4',
+       version= '0.5.5',
        license='BSD License',
        description='XML Abstract Markup Language',
        long_description=long_desc,
