@@ -1,3 +1,11 @@
+0.5.6
+=====
+
+enhance error messages for void elements with content
+add support for html entities
+keep backslashes
+
+
 0.5.5
 =====
 
