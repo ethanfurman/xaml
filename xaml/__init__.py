@@ -1223,9 +1223,41 @@ def minimal(text):
         '"' : '&#x22;',
         }
     result = []
-    for ch in text:
-        ch = cp.get(ch, ch)
-        result.append(ch)
+    # since &entity; may be present, when ampersand (&) is found scan forward until first
+    # non-ascii-letter is found; if non-ascii-letter is a semi-colon (;) leave
+    # as-is, otherwise convert the original &
+    sc = text.count(';')
+    amp = text.count('&')
+    if amp == 0:
+        sc = 0
+    index = 0
+    while sc:
+        # take care while semicolons have not been processed
+        ch = text[index]
+        index += 1
+        if ch == ';':
+            sc -= 1
+            result.append(ch)
+        elif ch != '&':
+            result.append(cp.get(ch, ch))
+        else:
+            # found & -- look for entity
+            sc_index = text.find(';', index)
+            # without & and ;
+            entity = text[index:sc_index]
+            if entity.isalpha():
+                # store entity and update index
+                result.append(text[index-1:sc_index+1])
+                index = sc_index + 1
+                sc -= 1
+            else:
+                # store & entity
+                result.append(cp.get(ch, ch))
+    else:
+        # no semicolons left, use quick-and-easy
+        text = text[index:]
+        for ch in text:
+            result.append(cp.get(ch, ch))
     return ''.join(result)
 
 xmlify = minimal
