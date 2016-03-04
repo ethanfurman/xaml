@@ -324,7 +324,36 @@ class TestXaml(TestCase):
             )
         self.assertMultiLineEqual(expected, Xaml(input).document.string())
 
-
+    def test_backslashes_not_removed(self):
+        input = (
+            '''!!!html\n'''
+            '''~html\n'''
+            '''    ~body\n'''
+            '''        ~div .container\n'''
+            '''            ~h1: Cam's Pizzeria\n'''
+            '''            ~div .row\n'''
+            '''                ~form action="#" onsubmit="alert('Thanks for clicking! This button doesn\\'t do anything because this is a fake pizzeria :\)')"\n'''
+            '''                    ~input type="submit" value="Contact Us"\n'''
+            )
+        expected = (
+            """<!DOCTYPE html>\n"""
+            """<html>\n"""
+            """    <head>\n"""
+            """        <meta charset="utf-8">\n"""
+            """    </head>\n"""
+            """    <body>\n"""
+            """        <div class="container">\n"""
+            """            <h1>Cam's Pizzeria</h1>\n"""
+            """            <div class="row">\n"""
+            """                <form action="#" onsubmit="alert('Thanks for clicking! This button doesn\\'t do anything because this is a fake pizzeria :\\)')">\n"""
+            """                    <input type="submit" value="Contact Us">\n"""
+            """                </form>\n"""
+            """            </div>\n"""
+            """        </div>\n"""
+            """    </body>\n"""
+            """</html>"""
+            )
+        self.assertMultiLineEqual(expected, Xaml(input).document.string())
 
     def test_random_content(self):
         input = (
