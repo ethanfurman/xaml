@@ -548,6 +548,7 @@ class Tokenizer:
                 ch = self.data.get_char()
                 if ch == '\n':
                     raise ParseError(self.date.line, 'newlines cannot be escaped')
+                value.append('\\')
                 value.append(ch)
             elif ch in ' )(/:\n':
                 break
