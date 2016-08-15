@@ -64,7 +64,12 @@ if sys.version_info < (3, 3) and sys.version_info[:2] != (2, 7):
 elif sys.version_info < (3, 4):
     requirements.append('enum34')
 
-setup( name='xaml',
+py2_only = ()
+py3_only = ()
+make = []
+
+data = dict(
+       name='xaml',
        version= '0.5.6',
        license='BSD License',
        description='XML Abstract Markup Language',
@@ -99,3 +104,5 @@ setup( name='xaml',
             ],
     )
 
+if __name__ == '__main__':
+    setup(**data)
