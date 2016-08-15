@@ -1,3 +1,10 @@
+0.5.7
+=====
+
+allow ':' in names without backslash
+backslash is only needed if ':' is the last character of the name
+
+
 0.5.6
 =====
 

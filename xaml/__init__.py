@@ -1,9 +1,11 @@
-"""xaml -- xml abstract markup language
+"""
+xaml -- xml abstract markup language
 
 https://bitbucket.org/stoneleaf/xaml
 
 Copyright 2015 Ethan Furman -- All rights reserved.
 """
+# imports
 from __future__ import unicode_literals, print_function
 from enum import Enum
 import re
@@ -27,7 +29,8 @@ except NameError:
 # only change default_encoding if you cannot specify the proper encoding with a meta tag
 default_encoding = 'utf-8'
 
-# helpers {{{1
+# helpers
+
 class AutoEnum(Enum):
     """
     Automatically numbers enum members starting from 1.
@@ -110,7 +113,8 @@ for r in (
 invalid_xml_chars = tuple(invalid_xml_chars)
 
 
-# pushable iter for text stream {{{1
+# pushable iter for text stream
+
 class PPLCStream:
     """
     Peekable, Pushable, Line & Character Stream
@@ -226,7 +230,8 @@ class PPLCStream:
         self.current_line = line
 
 
-# Token and Tokenizer {{{1
+# Token and Tokenizer
+
 class Token:
 
     def __init__(self, ttype, payload=None, make_safe=True):
@@ -474,11 +479,12 @@ class Tokenizer:
                 if ch in '''!"#$%&'()*+,/;<=>?@[]^`{|}~ \n''':
                     break
                 if ch == ':':
-                    # ':' must be backslash-escaped to be in name
-                    break
+                    # if next char is ws, end name
+                    if self.data.peek_char() in ' \t\n':
+                        break
                 if ch == '\\':
-                    # check if next char is ':'
-                    if self.data.peek_char() == ':':
+                    # needed to include : as last char in name
+                    if self.data.peek_char() in ':':
                         ch = self.data.get_char()
                     else:
                         break
@@ -717,7 +723,8 @@ class ML:
         return ('%s%s%s\n' % (leader, ' '.join(res), end)).encode(self.encoding)
 
 
-# xaml itself {{{1
+# xaml itself
+
 class Xaml(object):
 
     def __init__(self, text, _parse=True, _compile=True, doc_type=None, **namespace):
@@ -1175,7 +1182,11 @@ class XamlDoc:
 
 class Indent:
 
-    def __init__(self, blank='    ', level=0):
+    def __init__(
+            self,
+            blank='    ',
+            level=0,
+            ):
         self.blank = blank
         self.indent = level
 
@@ -1215,7 +1226,7 @@ class InvalidXmlCharacter(ParseError):
     Used for invalid code points
     '''
 
-
+# minor utilities
 def minimal(text):
     cp = {
         '<' : '&lt;',

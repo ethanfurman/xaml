@@ -1,3 +1,6 @@
+'''
+Tests for Xaml
+'''
 from __future__ import unicode_literals
 from unittest import TestCase, main
 from textwrap import dedent
@@ -115,6 +118,45 @@ class TestXaml(TestCase):
         result = Xaml('!!! coding: cp1252\n!!! xml'.encode('cp1252')).document.bytes()
         expected = '<?xml version="1.0" encoding="utf-8"?>\n'.encode('utf-8')
         self.assertEqual(expected, result)
+
+    # def test_double_documents(self):
+    #     input = (
+    #         '''!!!xml1.0\n'''
+    #         '''~AccessRequest xml:lang='en-US'\n'''
+    #         '''    ~AccessLicenseNumber: YourLicenseNumber\n'''
+    #         '''    ~UserId: YourUserID\n'''
+    #         '''    ~Password: YourPassword\n'''
+    #         '''!!!xml1.0\n'''
+    #         '''~TrackRequest xml:lang='en-US'\n'''
+    #         '''    ~Request\n'''
+    #         '''        ~TransactionReference\n'''
+    #         '''            ~CustomerContext: Your Test Case Summary Description\n'''
+    #         '''            ~XpciVersion: 1.0\n'''
+    #         '''        ~RequestAction: Track\n'''
+    #         '''        ~RequestOption: activity\n'''
+    #         '''    ~TrackingNumber: YourTrackingNumber\n'''
+    #         )
+    #     expected = (
+    #         '''<?xml version="1.0"?>\n'''
+    #         '''<AccessRequest xml:lang="en-US">\n'''
+    #         '''    <AccessLicenseNumber>YourLicenseNumber</AccessLicenseNumber>\n'''
+    #         '''    <UserId>YourUserID</UserId>\n'''
+    #         '''    <Password>YourPassword</Password>\n'''
+    #         '''</AccessRequest>\n'''
+    #         '''<?xml version="1.0"?>\n'''
+    #         '''<TrackRequest xml:lang="en-US">\n'''
+    #         '''    <Request>\n'''
+    #         '''        <TransactionReference>\n'''
+    #         '''            <CustomerContext>Your Test Case Summary Description</CustomerContext>\n'''
+    #         '''            <XpciVersion>1.0</XpciVersion>\n'''
+    #         '''        </TransactionReference>\n'''
+    #         '''        <RequestAction>Track</RequestAction>\n'''
+    #         '''        <RequestOption>activity</RequestOption>\n'''
+    #         '''    </Request>\n'''
+    #         '''    <TrackingNumber>YourTrackingNumber</TrackingNumber>\n'''
+    #         '''</TrackRequest>'''
+    #         ).encode('utf-8')
+    #     self.assertSequenceEqual(expected.split('\n'), Xaml(input).document.string().split('\n'))
 
     def test_xmlify_str_attr(self):
         result = Xaml("~Test colors='blue:days_left<=days_warn and days_left>0;red:days_left<=0;'").document.string()
@@ -1555,6 +1597,33 @@ class TestTokenizer(TestCase):
             )
         self.assertEqual(None, result[0].payload)
 
+    def test_tokens_2_1(self):
+        result = list(Tokenizer(
+        '''~testnames blah:='nancy'\n'''
+        ))
+        self.assertEqual(
+            [
+                Token(tt.ELEMENT, 'testnames'),
+                Token(tt.STR_ATTR, payload=('blah:', 'nancy'), make_safe=True),
+                Token(tt.DEDENT),
+            ],
+            result,
+            )
+
+    def test_tokens_2_2(self):
+        result = list(Tokenizer(
+        '''~testnames blah\: whosat='nancy'\n'''
+        ))
+        self.assertEqual(
+            [
+                Token(tt.ELEMENT, 'testnames'),
+                Token(tt.STR_ATTR, payload=('blah:', 'blah:'), make_safe=True),
+                Token(tt.STR_ATTR, payload=('whosat', 'nancy'), make_safe=True),
+                Token(tt.DEDENT),
+            ],
+            result,
+            )
+
     def test_tokens_3(self):
         result = list(Tokenizer(
             '''~opentag\n'''
@@ -1571,6 +1640,89 @@ class TestTokenizer(TestCase):
                 Token(tt.STR_ATTR, ('name', 'code'), True),
                 Token(tt.STR_DATA, 'Code goes here', make_safe=True),
                 Token(tt.DEDENT),
+                Token(tt.DEDENT),
+                Token(tt.DEDENT),
+            ],
+            result,
+            )
+
+    def test_tokens_3_1(self):
+        result = list(Tokenizer(
+            '''!!!xml1.0\n'''
+            '''~AccessRequest xml:lang='en-US'\n'''
+            '''    ~AccessLicenseNumber: Your License Number\n'''
+            '''    ~UserId: Your User ID\n'''
+            '''    ~Password: Your Password\n'''
+            ))
+        self.assertEqual(
+            [
+                Token(TokenType.META, payload=('xml', '1.0')),
+                Token(tt.ELEMENT, 'AccessRequest'),
+                Token(tt.STR_ATTR, ('xml:lang', 'en-US'), True),
+                Token(tt.INDENT),
+                Token(tt.ELEMENT, 'AccessLicenseNumber'),
+                Token(tt.STR_DATA, payload=('Your License Number', )),
+                Token(tt.ELEMENT, 'UserId'),
+                Token(tt.STR_DATA, payload=('Your User ID', )),
+                Token(tt.ELEMENT, 'Password'),
+                Token(tt.STR_DATA, payload=('Your Password', )),
+                Token(tt.DEDENT),
+                Token(tt.DEDENT),
+            ],
+            result,
+            )
+
+    def test_tokens_3_2(self):
+        result = list(Tokenizer(
+            '''!!!xml1.0\n'''
+            '''~AccessRequest xml:lang='en-US'\n'''
+            '''    ~AccessLicenseNumber: Your License Number\n'''
+            '''    ~UserId: Your User ID\n'''
+            '''    ~Password: Your Password\n'''
+            '''!!!xml1.0\n'''
+            '''~TrackRequest xml:lang='en-US'\n'''
+            '''    ~Request\n'''
+            '''        ~TransactionReference\n'''
+            '''            ~CustomerContext: Your Test Case Summary Description\n'''
+            '''            ~XpciVersion: 1.0\n'''
+            '''        ~RequestAction: Track\n'''
+            '''        ~RequestOption: activity\n'''
+            '''    ~TrackingNumber: Your Tracking Number\n'''
+            ))
+        self.assertEqual(
+            [
+                Token(TokenType.META, payload=('xml', '1.0')),
+                Token(tt.ELEMENT, 'AccessRequest'),
+                Token(tt.STR_ATTR, ('xml:lang', 'en-US'), True),
+                Token(tt.INDENT),
+                Token(tt.ELEMENT, 'AccessLicenseNumber'),
+                Token(tt.STR_DATA, payload=('Your License Number', )),
+                Token(tt.ELEMENT, 'UserId'),
+                Token(tt.STR_DATA, payload=('Your User ID', )),
+                Token(tt.ELEMENT, 'Password'),
+                Token(tt.STR_DATA, payload=('Your Password', )),
+                Token(tt.DEDENT),
+
+                Token(TokenType.META, payload=('xml', '1.0')),
+                Token(tt.ELEMENT, 'TrackRequest'),
+                Token(tt.STR_ATTR, ('xml:lang', 'en-US'), True),
+                Token(tt.INDENT),
+                Token(tt.ELEMENT, 'Request'),
+                Token(tt.INDENT),
+                Token(tt.ELEMENT, 'TransactionReference'),
+                Token(tt.INDENT),
+                Token(tt.ELEMENT, 'CustomerContext'),
+                Token(tt.STR_DATA, 'Your Test Case Summary Description', make_safe=True),
+                Token(tt.ELEMENT, 'XpciVersion'),
+                Token(tt.STR_DATA, '1.0', make_safe=True),
+                Token(tt.DEDENT),
+                Token(tt.ELEMENT, 'RequestAction'),
+                Token(tt.STR_DATA, 'Track', make_safe=True),
+                Token(tt.ELEMENT, 'RequestOption'),
+                Token(tt.STR_DATA, 'activity', make_safe=True),
+                Token(tt.DEDENT),
+                Token(tt.ELEMENT, 'TrackingNumber'),
+                Token(tt.STR_DATA, 'Your Tracking Number', make_safe=True),
                 Token(tt.DEDENT),
                 Token(tt.DEDENT),
             ],

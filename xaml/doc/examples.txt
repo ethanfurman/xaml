@@ -72,6 +72,22 @@ Example xaml code and xml/html they are converted into:
 
 
 ==============================================================================
+!!!xml1.0\n
+~AccessRequest xml:lang='en-US'\n
+    ~AccessLicenseNumber: YourLicenseNumber\n
+    ~UserId: YourUserID\n
+    ~Password: YourPassword\n
+------------------------------------------------------------------------------
+<?xml version="1.0"?>
+<AccessRequest xml:lang="en-US">
+    <AccessLicenseNumber>YourLicenseNumber</AccessLicenseNumber>
+    <UserId>YourUserID</UserId>
+    <Password>YourPassword</Password>
+</AccessRequest>
+==============================================================================
+
+
+==============================================================================
 !!!html
 ~html
     ~head
