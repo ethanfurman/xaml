@@ -1009,7 +1009,7 @@ class Xaml(object):
             # META
             elif token.type is tt.META:
                 if len(self._depth) != 1 or self._depth[0].type != None:
-                    raise ParseError('meta tags (such as %r) cannot be nested' % token.payload)
+                    raise ParseError('meta tags (such as %r) cannot be nested' % (token.payload,))
                 name, value = token.payload
                 if name in ML.doc_types and value in ML.doc_types[name]:
                     meta['type'] = name
