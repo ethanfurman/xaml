@@ -54,11 +54,11 @@ class TestXaml(TestCase):
     maxDiff = None
 
     def test_empty_doc(self):
-        Xaml('').document.bytes()
+        Xaml('').document.pages[0].bytes()
 
     def test_mostly_empty_doc(self):
         self.assertEqual(
-                Xaml('!!! html\n!!! vim: fileencoding=utf-8'.encode('utf-8')).document.string(),
+                Xaml('!!! html\n!!! vim: fileencoding=utf-8'.encode('utf-8')).document.pages[0].string(),
                 '<!DOCTYPE html>\n',
                 )
 
@@ -67,9 +67,59 @@ class TestXaml(TestCase):
         self.assertRaises(ParseError, Xaml, input)
 
     def test_content_xmling(self):
-        result = Xaml('<howdy!>').document.string()
+        result = Xaml('<howdy!>').document.pages[0].string()
         expected = '&lt;howdy!&gt;'
         self.assertEqual(expected, result)
+
+    def test_initial_blank_line(self):
+        input = (
+            '''\n'''
+            '''~opentag\n'''
+            '''    ~data\n'''
+            '''        :python\n'''
+            '''            1 & 2\n'''
+            '''            5 < 9\n'''
+            '''\n'''
+            '''    ~data\n'''
+            )
+        expected = (
+            '''<opentag>\n'''
+            '''    <data>\n'''
+            '''        <script type="text/python">\n'''
+            '''            1 & 2\n'''
+            '''            5 < 9\n'''
+            '''        </script>\n'''
+            '''    </data>\n'''
+            '''    <data/>\n'''
+            '''</opentag>'''
+            ).encode('utf-8')
+        self.assertSequenceEqual(expected, Xaml(input).document.pages[0].bytes())
+
+    def test_initial_blank_line_and_meta(self):
+        input = (
+            '''\n'''
+            '''!!! xml1.0\n'''
+            '''~opentag\n'''
+            '''    ~data\n'''
+            '''        :python\n'''
+            '''            1 & 2\n'''
+            '''            5 < 9\n'''
+            '''\n'''
+            '''    ~data\n'''
+            )
+        expected = (
+            '''<?xml version="1.0" encoding="utf-8"?>\n'''
+            '''<opentag>\n'''
+            '''    <data>\n'''
+            '''        <script type="text/python">\n'''
+            '''            1 & 2\n'''
+            '''            5 < 9\n'''
+            '''        </script>\n'''
+            '''    </data>\n'''
+            '''    <data/>\n'''
+            '''</opentag>'''
+            ).encode('utf-8')
+        self.assertSequenceEqual(expected, Xaml(input).document.pages[0].bytes())
 
     def test_python_filter(self):
         input = (
@@ -92,7 +142,7 @@ class TestXaml(TestCase):
             '''    <data/>\n'''
             '''</opentag>'''
             ).encode('utf-8')
-        self.assertSequenceEqual(expected, Xaml(input).document.bytes())
+        self.assertSequenceEqual(expected, Xaml(input).document.pages[0].bytes())
 
     def test_python_filter_as_last(self):
         input = (
@@ -112,10 +162,10 @@ class TestXaml(TestCase):
             '''    </data>\n'''
             '''</opentag>'''
             ).encode('utf-8')
-        self.assertSequenceEqual(expected, Xaml(input).document.bytes())
+        self.assertSequenceEqual(expected, Xaml(input).document.pages[0].bytes())
 
     def test_meta_coding(self):
-        result = Xaml('!!! coding: cp1252\n!!! xml'.encode('cp1252')).document.bytes()
+        result = Xaml('!!! coding: cp1252\n!!! xml'.encode('cp1252')).document.pages[0].bytes()
         expected = '<?xml version="1.0" encoding="utf-8"?>\n'.encode('utf-8')
         self.assertEqual(expected, result)
 
@@ -156,10 +206,10 @@ class TestXaml(TestCase):
     #         '''    <TrackingNumber>YourTrackingNumber</TrackingNumber>\n'''
     #         '''</TrackRequest>'''
     #         ).encode('utf-8')
-    #     self.assertSequenceEqual(expected.split('\n'), Xaml(input).document.string().split('\n'))
+    #     self.assertSequenceEqual(expected.split('\n'), Xaml(input).document.pages[0].string().split('\n'))
 
     def test_xmlify_str_attr(self):
-        result = Xaml("~Test colors='blue:days_left<=days_warn and days_left>0;red:days_left<=0;'").document.string()
+        result = Xaml("~Test colors='blue:days_left<=days_warn and days_left>0;red:days_left<=0;'").document.pages[0].string()
         expected = '<Test colors="blue:days_left&lt;=days_warn and days_left&gt;0;red:days_left&lt;=0;"/>'
         self.assertEqual(expected, result)
 
@@ -183,7 +233,7 @@ class TestXaml(TestCase):
             '''    </data>\n'''
             '''</opentag>'''
             ).encode('utf-8')
-        self.assertSequenceEqual(expected, Xaml(input).document.bytes())
+        self.assertSequenceEqual(expected, Xaml(input).document.pages[0].bytes())
 
     def test_nested_comments(self):
         input = (
@@ -245,7 +295,7 @@ class TestXaml(TestCase):
             '''    </data>\n'''
             '''</opentag>'''
             )
-        self.assertMultiLineEqual(expected, Xaml(input).document.string())
+        self.assertMultiLineEqual(expected, Xaml(input).document.pages[0].string())
 
     def test_nesting_blanks(self):
         input = (
@@ -279,7 +329,7 @@ class TestXaml(TestCase):
             '''    </data>\n'''
             '''</opentag>'''
             ).encode('utf-8')
-        self.assertSequenceEqual(expected, Xaml(input).document.bytes())
+        self.assertSequenceEqual(expected, Xaml(input).document.pages[0].bytes())
 
     def test_same_level_comments(self):
         input = (
@@ -316,7 +366,7 @@ class TestXaml(TestCase):
             '''    </data>\n'''
             '''</opentag>'''
             ).encode('utf-8')
-        self.assertSequenceEqual(expected, Xaml(input).document.bytes())
+        self.assertSequenceEqual(expected, Xaml(input).document.pages[0].bytes())
 
     def test_indented_content(self):
         input = (
@@ -338,7 +388,7 @@ class TestXaml(TestCase):
             '''        result[ip] = '%s\\n\\n%s' % (hash, ascii_art)\n'''
             '''</field>'''
             )
-        self.assertMultiLineEqual(expected, Xaml(input).document.string())
+        self.assertMultiLineEqual(expected, Xaml(input).document.pages[0].string())
 
     def test_after_indented_content(self):
         input = (
@@ -364,7 +414,7 @@ class TestXaml(TestCase):
             '''\n'''
             '''<field name="something_else"/>'''
             )
-        self.assertMultiLineEqual(expected, Xaml(input).document.string())
+        self.assertMultiLineEqual(expected, Xaml(input).document.pages[0].string())
 
     def test_backslashes_not_removed(self):
         input = (
@@ -395,7 +445,7 @@ class TestXaml(TestCase):
             """    </body>\n"""
             """</html>"""
             )
-        self.assertMultiLineEqual(expected, Xaml(input).document.string())
+        self.assertMultiLineEqual(expected, Xaml(input).document.pages[0].string())
 
     def test_random_content(self):
         input = (
@@ -420,7 +470,7 @@ class TestXaml(TestCase):
             '''    </data>\n'''
             '''</opentag>'''
             )
-        self.assertMultiLineEqual(expected, Xaml(input).document.string())
+        self.assertMultiLineEqual(expected, Xaml(input).document.pages[0].string())
 
     def test_random_content_with_newlines_after(self):
         input = (
@@ -447,7 +497,7 @@ class TestXaml(TestCase):
             '''    </data>\n'''
             '''</opentag>'''
             ).encode('utf-8')
-        self.assertSequenceEqual(expected, Xaml(input).document.bytes())
+        self.assertSequenceEqual(expected, Xaml(input).document.pages[0].bytes())
 
     def test_random_content_with_newlines_around(self):
         input = (
@@ -476,7 +526,7 @@ class TestXaml(TestCase):
             '''    </data>\n'''
             '''</opentag>'''
             )
-        self.assertMultiLineEqual(expected, Xaml(input).document.string())
+        self.assertMultiLineEqual(expected, Xaml(input).document.pages[0].string())
 
     def test_random_content_with_newlines_before(self):
         input = (
@@ -503,7 +553,7 @@ class TestXaml(TestCase):
             '''    </data>\n'''
             '''</opentag>'''
             ).encode('utf-8')
-        self.assertSequenceEqual(expected, Xaml(input).document.bytes())
+        self.assertSequenceEqual(expected, Xaml(input).document.pages[0].bytes())
 
     def test_simple(self):
         input = (
@@ -518,7 +568,7 @@ class TestXaml(TestCase):
             '''    </level_one>\n'''
             '''</opentag>'''
             )
-        self.assertMultiLineEqual(expected, Xaml(input).document.string())
+        self.assertMultiLineEqual(expected, Xaml(input).document.pages[0].string())
 
     def test_nested(self):
         input = (
@@ -556,10 +606,10 @@ class TestXaml(TestCase):
             '''    </record>\n'''
             '''</openerp>'''
             ).encode('utf-8')
-        self.assertSequenceEqual(expected, Xaml(input).document.bytes())
+        self.assertSequenceEqual(expected, Xaml(input).document.pages[0].bytes())
 
     def test_meta_closing(self):
-        result = Xaml('!!! xml1.0').document.bytes()
+        result = Xaml('!!! xml1.0').document.pages[0].bytes()
         self.assertEqual(
                 '<?xml version="1.0" encoding="utf-8"?>\n'.encode('utf-8'),
                 result,
@@ -567,7 +617,7 @@ class TestXaml(TestCase):
 
     # TODO: enable this test once encodings besides utf-8 are supported
     # def test_meta_xml_non_utf_encoding(self):
-    #     result = Xaml('!!! xml1.0 encoding="cp1252"').document.string()
+    #     result = Xaml('!!! xml1.0 encoding="cp1252"').document.pages[0].string()
     #     self.assertEqual(
     #             '<?xml version="1.0" encoding="cp1252"?>\n'.encode('utf-8'),
     #             result,
@@ -577,15 +627,15 @@ class TestXaml(TestCase):
         doc = Xaml('!!! xml1.0 encoding="utf-8"').document
         self.assertEqual(
                 '<?xml version="1.0" encoding="utf-8"?>\n'.encode('utf-8'),
-                doc.bytes(),
+                doc.pages[0].bytes(),
                 )
         self.assertEqual(
                 '<?xml version="1.0"?>\n',
-                doc.string(),
+                doc.pages[0].string(),
                 )
 
     def test_element_closing(self):
-        result = Xaml('~opentag').document.bytes()
+        result = Xaml('~opentag').document.pages[0].bytes()
         self.assertEqual(
                 '<opentag/>'.encode('utf-8'),
                 result,
@@ -626,7 +676,7 @@ class TestXaml(TestCase):
             '''    </data>\n'''
             '''</openerp>'''
             )
-        self.assertMultiLineEqual(expected, Xaml(input).document.string())
+        self.assertMultiLineEqual(expected, Xaml(input).document.pages[0].string())
 
     def test_filter_2(self):
         input = (
@@ -677,7 +727,7 @@ class TestXaml(TestCase):
             '''    </data>\n'''
             '''</openerp>'''
             ).encode('utf-8')
-        self.assertSequenceEqual(expected, Xaml(input).document.bytes())
+        self.assertSequenceEqual(expected, Xaml(input).document.pages[0].bytes())
 
     def test_dynamic(self):
         order = ['first', 'second', 'third']
@@ -696,7 +746,7 @@ class TestXaml(TestCase):
             '''    </an_ordered_list>''',
             '''</the_page>''',
             ])
-        self.assertMultiLineEqual(expected, Xaml(input).document.string(order=order))
+        self.assertMultiLineEqual(expected, Xaml(input).document.pages[0].string(order=order))
 
     def test_tag_in_content(self):
         input = '\n'.join([
@@ -712,7 +762,7 @@ class TestXaml(TestCase):
             '''    more.''',
             '''</div>''',
             ])
-        self.assertMultiLineEqual(expected, Xaml(input).document.string())
+        self.assertMultiLineEqual(expected, Xaml(input).document.pages[0].string())
 
     def test_shortcut_in_content(self):
         input = '\n'.join([
@@ -728,7 +778,7 @@ class TestXaml(TestCase):
             '''    more.''',
             '''</div>''',
             ])
-        self.assertMultiLineEqual(expected, Xaml(input).document.string())
+        self.assertMultiLineEqual(expected, Xaml(input).document.pages[0].string())
 
     def test_content_and_tag(self):
         input = '\n'.join([
@@ -751,7 +801,7 @@ class TestXaml(TestCase):
             '''</div>''',
             '''<field name="subject"/>''',
             ])
-        self.assertMultiLineEqual(expected, Xaml(input).document.string())
+        self.assertMultiLineEqual(expected, Xaml(input).document.pages[0].string())
 
     def test_html_canvas(self):
         input = '\n'.join([
@@ -771,7 +821,7 @@ class TestXaml(TestCase):
             '''    </body>''',
             '''</html>''',
             ])
-        self.assertMultiLineEqual(expected, Xaml(input).document.string())
+        self.assertMultiLineEqual(expected, Xaml(input).document.pages[0].string())
 
     def test_html_no_head(self):
         input = '\n'.join([
@@ -794,7 +844,7 @@ class TestXaml(TestCase):
             '''    </body>''',
             '''</html>''',
             ])
-        self.assertMultiLineEqual(expected, Xaml(input).document.string())
+        self.assertMultiLineEqual(expected, Xaml(input).document.pages[0].string())
 
     def test_html_empty_head(self):
         input = '\n'.join([
@@ -818,7 +868,7 @@ class TestXaml(TestCase):
             '''    </body>''',
             '''</html>''',
             ])
-        self.assertMultiLineEqual(expected, Xaml(input).document.string())
+        self.assertMultiLineEqual(expected, Xaml(input).document.pages[0].string())
 
     def test_html_head(self):
         input = '\n'.join([
@@ -844,7 +894,7 @@ class TestXaml(TestCase):
             '''    </body>''',
             '''</html>''',
             ])
-        self.assertMultiLineEqual(expected, Xaml(input).document.string())
+        self.assertMultiLineEqual(expected, Xaml(input).document.pages[0].string())
 
     def test_html_void_tags(self):
         input = '\n'.join([
@@ -856,7 +906,7 @@ class TestXaml(TestCase):
             '''        ~area: This is a test of something.''',
             ])
         document = Xaml(input).document
-        self.assertRaises(XamlError, document.string)
+        self.assertRaises(XamlError, document.pages[0].string)
         input = '\n'.join([
             '''!!! html5''',
             '''~html''',
@@ -867,7 +917,7 @@ class TestXaml(TestCase):
             '''            This is a test of something.''',
             ])
         document = Xaml(input).document
-        self.assertRaises(XamlError, document.string)
+        self.assertRaises(XamlError, document.pages[0].string)
 
     def test_xml_html_void_tags(self):
         input = '\n'.join([
@@ -890,7 +940,7 @@ class TestXaml(TestCase):
             '''    </body>''',
             '''</html>''',
             ])
-        self.assertMultiLineEqual(expected, Xaml(input).document.string())
+        self.assertMultiLineEqual(expected, Xaml(input).document.pages[0].string())
 
     def test_html_override_html(self):
         input = '\n'.join([
@@ -913,7 +963,7 @@ class TestXaml(TestCase):
             '''    </body>''',
             '''</html>''',
             ])
-        self.assertMultiLineEqual(expected, Xaml(input, type='html').document.string())
+        self.assertMultiLineEqual(expected, Xaml(input, type='html').document.pages[0].string())
 
     def test_xml_override_html(self):
         input = '\n'.join([
@@ -933,7 +983,7 @@ class TestXaml(TestCase):
             '''    </body>''',
             '''</html>''',
             ])
-        self.assertMultiLineEqual(expected, Xaml(input.encode('utf-8'), doc_type='xml').document.string())
+        self.assertMultiLineEqual(expected, Xaml(input.encode('utf-8'), doc_type='xml').document.pages[0].string())
 
     def test_html_default_tag(self):
         input = '\n'.join([
@@ -956,7 +1006,7 @@ class TestXaml(TestCase):
             '''    </body>''',
             '''</html>''',
             ])
-        self.assertMultiLineEqual(expected, Xaml(input).document.string())
+        self.assertMultiLineEqual(expected, Xaml(input).document.pages[0].string())
 
     def test_html_default_tag_in_snippet(self):
         input = '\n'.join([
@@ -968,7 +1018,7 @@ class TestXaml(TestCase):
             '''    Hello!''',
             '''</div>''',
             ])
-        self.assertMultiLineEqual(expected, Xaml(input, doc_type='html').document.string())
+        self.assertMultiLineEqual(expected, Xaml(input, doc_type='html').document.pages[0].string())
 
     def test_html_element_lock_unlocks(self):
         input = '\n'.join([
@@ -997,7 +1047,7 @@ class TestXaml(TestCase):
             '''    </body>''',
             '''</html>''',
             ])
-        self.assertMultiLineEqual(expected, Xaml(input).document.string())
+        self.assertMultiLineEqual(expected, Xaml(input).document.pages[0].string())
 
     def test_multi_class(self):
         input = '\n'.join([
@@ -1011,7 +1061,7 @@ class TestXaml(TestCase):
             '''    <img src="images/my_logo.svg" alt="logo">''',
             '''</div>''',
             ])
-        self.assertMultiLineEqual(expected, Xaml(input).document.string())
+        self.assertMultiLineEqual(expected, Xaml(input).document.pages[0].string())
         input = '\n'.join([
             """!!! html""",
             """~div .circle .logo""",
@@ -1023,7 +1073,7 @@ class TestXaml(TestCase):
             '''    <img src="images/my_logo.svg" alt="logo">''',
             '''</div>''',
             ])
-        self.assertMultiLineEqual(expected, Xaml(input).document.string())
+        self.assertMultiLineEqual(expected, Xaml(input).document.pages[0].string())
 
     # def test_valid_html4_strict(self):
     #     input = '\n'.join([
@@ -1047,7 +1097,7 @@ class TestXaml(TestCase):
     #         '''    </body>''',
     #         '''</html>''',
     #         ])
-    #    self.assertMultiLineEqual(expected, Xaml(input).document.string())
+    #    self.assertMultiLineEqual(expected, Xaml(input).document.pages[0].string())
 
     def test_style_not_escaped(self):
         'no xaml processing should take place inside a <style> tag'
@@ -1069,7 +1119,7 @@ class TestXaml(TestCase):
             '''    &lt;howdy!&gt;''',
             '''</body>''',
             ])
-        self.assertMultiLineEqual(expected, Xaml(input, doc_type='html').document.string())
+        self.assertMultiLineEqual(expected, Xaml(input, doc_type='html').document.pages[0].string())
         input = '\n'.join([
             """~style""",
             """    body > ul {""",
@@ -1083,7 +1133,7 @@ class TestXaml(TestCase):
             '''    }''',
             '''</style>''',
             ])
-        self.assertMultiLineEqual(expected, Xaml(input, doc_type='html').document.string())
+        self.assertMultiLineEqual(expected, Xaml(input, doc_type='html').document.pages[0].string())
 
     def test_css_without_blank_lines(self):
         'absence of blank lines should not affect following elements'
@@ -1114,7 +1164,7 @@ class TestXaml(TestCase):
             '''    </body>''',
             '''</html>''',
             ])
-        self.assertMultiLineEqual(expected, Xaml(input, doc_type='html').document.string())
+        self.assertMultiLineEqual(expected, Xaml(input, doc_type='html').document.pages[0].string())
 
     def test_css_with_blank_lines(self):
         'presence of blank lines should not affect following elements'
@@ -1146,7 +1196,7 @@ class TestXaml(TestCase):
             '''    </body>''',
             '''</html>''',
             ])
-        self.assertMultiLineEqual(expected, Xaml(input, doc_type='html').document.string())
+        self.assertMultiLineEqual(expected, Xaml(input, doc_type='html').document.pages[0].string())
 
     def test_javascript_without_blank_lines(self):
         'absence of blank lines should not affect following elements'
@@ -1179,7 +1229,7 @@ class TestXaml(TestCase):
             '''    </body>''',
             '''</html>''',
             ])
-        self.assertMultiLineEqual(expected, Xaml(input, doc_type='html').document.string())
+        self.assertMultiLineEqual(expected, Xaml(input, doc_type='html').document.pages[0].string())
 
     def test_javascript_with_blank_lines(self):
         'presence of blank lines should not affect following elements'
@@ -1213,7 +1263,7 @@ class TestXaml(TestCase):
             '''    </body>''',
             '''</html>''',
             ])
-        self.assertMultiLineEqual(expected, Xaml(input, doc_type='html').document.string())
+        self.assertMultiLineEqual(expected, Xaml(input, doc_type='html').document.pages[0].string())
 
     def test_script_not_escaped(self):
         'no xaml processing should take place inside a <script> tag'
@@ -1232,7 +1282,7 @@ class TestXaml(TestCase):
             '''    }''',
             '''</script>''',
             ])
-        self.assertMultiLineEqual(expected, Xaml(input, doc_type='html').document.string())
+        self.assertMultiLineEqual(expected, Xaml(input, doc_type='html').document.pages[0].string())
 
     def test_script_not_escaped_with_blank_lines(self):
         'no xaml processing should take place inside a <script> tag, even with blank lines present'
@@ -1253,7 +1303,7 @@ class TestXaml(TestCase):
             '''    }''',
             '''</script>''',
             ])
-        self.assertMultiLineEqual(expected, Xaml(input, doc_type='html').document.string())
+        self.assertMultiLineEqual(expected, Xaml(input, doc_type='html').document.pages[0].string())
 
     def test_script_in_content(self):
         'script content is still script'
@@ -1284,7 +1334,7 @@ class TestXaml(TestCase):
             '''    </body>''',
             '''</html>''',
             ])
-        self.assertMultiLineEqual(expected, Xaml(input).document.string())
+        self.assertMultiLineEqual(expected, Xaml(input).document.pages[0].string())
 
     def test_script_and_script(self):
         'script content is still script'
@@ -1307,7 +1357,7 @@ class TestXaml(TestCase):
             '''    </body>''',
             '''</html>''',
             ])
-        self.assertMultiLineEqual(expected, Xaml(input).document.string())
+        self.assertMultiLineEqual(expected, Xaml(input).document.pages[0].string())
 
     def test_script_and_dedent(self):
         'script content is still script'
@@ -1336,7 +1386,7 @@ class TestXaml(TestCase):
             '''    </body>''',
             '''</html>''',
             ])
-        self.assertMultiLineEqual(expected, Xaml(input).document.string())
+        self.assertMultiLineEqual(expected, Xaml(input).document.pages[0].string())
 
     def test_cdata(self):
         input = '\n'.join([
@@ -1376,7 +1426,7 @@ class TestXaml(TestCase):
             '''    </field>''',
             '''</record>''',
             ])
-        self.assertMultiLineEqual(expected, Xaml(input).document.string())
+        self.assertMultiLineEqual(expected, Xaml(input).document.pages[0].string())
 
     def test_cdata_python(self):
         input = '\n'.join([
@@ -1416,7 +1466,7 @@ class TestXaml(TestCase):
             '''    </field>''',
             '''</record>''',
             ])
-        self.assertMultiLineEqual(expected, Xaml(input).document.string())
+        self.assertMultiLineEqual(expected, Xaml(input).document.pages[0].string())
 
     def test_all_filters(self):
         input = '\n'.join([
@@ -1477,35 +1527,35 @@ class TestXaml(TestCase):
             '''    </body>''',
             '''</html>''',
             ])
-        self.assertMultiLineEqual(expected, Xaml(input, doc_type='html').document.string())
+        self.assertMultiLineEqual(expected, Xaml(input, doc_type='html').document.pages[0].string())
 
 class TestPPLCStream(TestCase):
 
     def test_get_char(self):
-        sample = 'line one\nline two\n'
-        stream = PPLCStream(sample)
+        sample = u'line one\nline two'
+        stream = PPLCStream(sample.split('\n'))
         result = []
         while True:
             ch = stream.get_char()
             if ch is None:
                 break
             result.append(ch)
-        self.assertEqual(''.join(result), sample)
+        self.assertEqual(''.join(result), sample+'\n')
 
     def test_get_line(self):
-        sample = 'line one\nline two\n'
-        stream = PPLCStream(sample)
+        sample = u'line one\nline two'
+        stream = PPLCStream(sample.split('\n'))
         result = []
         while True:
             line = stream.get_line()
             if line is None:
                 break
             result.append(line)
-        self.assertEqual(''.join(result), sample)
+        self.assertEqual(''.join(result), sample+'\n')
 
     def test_push_char(self):
-        sample = 'line one\nline two\n'
-        stream = PPLCStream(sample)
+        sample = u'line one\nline two'
+        stream = PPLCStream(sample.split('\n'))
         result = []
         stream.push_char('2')
         stream.push_char('4')
@@ -1514,11 +1564,11 @@ class TestPPLCStream(TestCase):
             if line is None:
                 break
             result.append(line)
-        self.assertEqual(''.join(result), '42' + sample)
+        self.assertEqual(''.join(result), '42'+sample+'\n')
 
     def test_push_line(self):
-        sample = 'line one\nline two\n'
-        stream = PPLCStream(sample)
+        sample = u'line one\nline two'
+        stream = PPLCStream(sample.split('\n'))
         result = []
         stream.push_line('line zero')
         while True:
@@ -1526,14 +1576,17 @@ class TestPPLCStream(TestCase):
             if ch is None:
                 break
             result.append(ch)
-        self.assertEqual(''.join(result), 'line zero\n' + sample)
+        self.assertEqual(''.join(result), 'line zero\n'+sample+'\n')
+
+
+class TestDecoding(TestCase):
 
     def test_error(self):
-        self.assertRaises(XamlError, PPLCStream, b'!!! coding: blah')
-        self.assertRaises(XamlError, PPLCStream, b'!!! coding:')
-        self.assertRaises(XamlError, PPLCStream, b'!!! coding:   ')
-        self.assertRaises(XamlError, PPLCStream, b'!!! coding =   ')
-        self.assertRaises(XamlError, PPLCStream, b'!!! coding = nope  ')
+        self.assertRaises(XamlError, xaml.decode, b'!!! coding: blah')
+        self.assertRaises(XamlError, xaml.decode, b'!!! coding:')
+        self.assertRaises(XamlError, xaml.decode, b'!!! coding:   ')
+        self.assertRaises(XamlError, xaml.decode, b'!!! coding =   ')
+        self.assertRaises(XamlError, xaml.decode, b'!!! coding = nope  ')
 
 
 class TestTokenizer(TestCase):
@@ -1550,11 +1603,11 @@ class TestTokenizer(TestCase):
         self.assertRaises(ParseError, Xaml, '~7hmm')
 
     def test_parens(self):
-        result = list(Tokenizer(
-            '''~opentag (\n'''
-            '''name='value'\n'''
-            ''')'''
-            ))
+        result = list(Tokenizer([
+            '''~opentag (\n''',
+            '''name='value'\n''',
+            ''')''',
+            ]))
         self.assertEqual(
             [
                 Token(tt.ELEMENT, 'opentag'),
@@ -1565,9 +1618,9 @@ class TestTokenizer(TestCase):
             )
 
     def test_tokens_comment(self):
-        result = list(Tokenizer(
-            '''// a random comment'''
-            ))
+        result = list(Tokenizer([
+            '''// a random comment''',
+            ]))
         self.assertEqual(
             [
                 Token(tt.COMMENT, 'a random comment'),
@@ -1577,15 +1630,15 @@ class TestTokenizer(TestCase):
             )
 
     def test_tokens_1(self):
-        result = list(Tokenizer(
-            '''       '''
-            ))
+        result = list(Tokenizer([
+            '''       ''',
+            ]))
         self.assertEqual(result, [Token(tt.BLANK_LINE), Token(tt.DEDENT)])
 
     def test_tokens_2(self):
-        result = list(Tokenizer(
-        '''   !!! xml\n'''
-        ))
+        result = list(Tokenizer([
+        '''   !!! xml''',
+        ]))
         self.assertEqual(
             [
                 Token(tt.INDENT),
@@ -1598,9 +1651,9 @@ class TestTokenizer(TestCase):
         self.assertEqual(None, result[0].payload)
 
     def test_tokens_2_1(self):
-        result = list(Tokenizer(
-        '''~testnames blah:='nancy'\n'''
-        ))
+        result = list(Tokenizer([
+        '''~testnames blah:="nancy"''',
+        ]))
         self.assertEqual(
             [
                 Token(tt.ELEMENT, 'testnames'),
@@ -1611,9 +1664,9 @@ class TestTokenizer(TestCase):
             )
 
     def test_tokens_2_2(self):
-        result = list(Tokenizer(
-        '''~testnames blah\: whosat='nancy'\n'''
-        ))
+        result = list(Tokenizer([
+        '''~testnames blah\: whosat="nancy"''',
+        ]))
         self.assertEqual(
             [
                 Token(tt.ELEMENT, 'testnames'),
@@ -1625,11 +1678,11 @@ class TestTokenizer(TestCase):
             )
 
     def test_tokens_3(self):
-        result = list(Tokenizer(
-            '''~opentag\n'''
-            '''    ~level_one\n'''
-            '''        ~field @code: Code goes here'''
-            ))
+        result = list(Tokenizer([
+            '''~opentag''',
+            '''    ~level_one''',
+            '''        ~field @code: Code goes here''',
+            ]))
         self.assertEqual(
             [
                 Token(tt.ELEMENT, 'opentag'),
@@ -1647,13 +1700,13 @@ class TestTokenizer(TestCase):
             )
 
     def test_tokens_3_1(self):
-        result = list(Tokenizer(
-            '''!!!xml1.0\n'''
-            '''~AccessRequest xml:lang='en-US'\n'''
-            '''    ~AccessLicenseNumber: Your License Number\n'''
-            '''    ~UserId: Your User ID\n'''
-            '''    ~Password: Your Password\n'''
-            ))
+        result = list(Tokenizer([
+            '''!!!xml1.0''',
+            '''~AccessRequest xml:lang="en-US"''',
+            '''    ~AccessLicenseNumber: Your License Number''',
+            '''    ~UserId: Your User ID''',
+            '''    ~Password: Your Password''',
+            ]))
         self.assertEqual(
             [
                 Token(TokenType.META, payload=('xml', '1.0')),
@@ -1673,22 +1726,22 @@ class TestTokenizer(TestCase):
             )
 
     def test_tokens_3_2(self):
-        result = list(Tokenizer(
-            '''!!!xml1.0\n'''
-            '''~AccessRequest xml:lang='en-US'\n'''
-            '''    ~AccessLicenseNumber: Your License Number\n'''
-            '''    ~UserId: Your User ID\n'''
-            '''    ~Password: Your Password\n'''
-            '''!!!xml1.0\n'''
-            '''~TrackRequest xml:lang='en-US'\n'''
-            '''    ~Request\n'''
-            '''        ~TransactionReference\n'''
-            '''            ~CustomerContext: Your Test Case Summary Description\n'''
-            '''            ~XpciVersion: 1.0\n'''
-            '''        ~RequestAction: Track\n'''
-            '''        ~RequestOption: activity\n'''
-            '''    ~TrackingNumber: Your Tracking Number\n'''
-            ))
+        result = list(Tokenizer([
+            '''!!!xml1.0''',
+            '''~AccessRequest xml:lang="en-US"''',
+            '''    ~AccessLicenseNumber: Your License Number''',
+            '''    ~UserId: Your User ID''',
+            '''    ~Password: Your Password''',
+            '''!!!xml1.0''',
+            '''~TrackRequest xml:lang="en-US"''',
+            '''    ~Request''',
+            '''        ~TransactionReference''',
+            '''            ~CustomerContext: Your Test Case Summary Description''',
+            '''            ~XpciVersion: 1.0''',
+            '''        ~RequestAction: Track''',
+            '''        ~RequestOption: activity''',
+            '''    ~TrackingNumber: Your Tracking Number''',
+            ]))
         self.assertEqual(
             [
                 Token(TokenType.META, payload=('xml', '1.0')),
@@ -1730,15 +1783,15 @@ class TestTokenizer(TestCase):
             )
 
     def test_tokens_4(self):
-        result = list(Tokenizer(
-            '''!!! xml\n'''
-            '''-view="ir.ui.view"\n'''
-            '''-model="some_test.my_table"\n'''
-            '''~openerp\n'''
-            '''  ~record #some_id model=view\n'''
-            '''    @name: Folders\n'''
-            '''    @arch type="xml"\n'''
-        ))
+        result = list(Tokenizer([
+            '''!!! xml''',
+            '''-view="ir.ui.view"''',
+            '''-model="some_test.my_table"''',
+            '''~openerp''',
+            '''  ~record #some_id model=view''',
+            '''    @name: Folders''',
+            '''    @arch type="xml"''',
+        ]))
         self.assertEqual(
             [
                 Token(TokenType.META, payload=('xml', '1.0')),
@@ -1764,21 +1817,21 @@ class TestTokenizer(TestCase):
             )
 
     def test_tokens_5(self):
-        result = list(xaml.Tokenizer((
-            '''!!! xml\n'''
-            '''~openerp\n'''
-            '''   ~record #fax_id view='ui.ir.view'\n'''
-            '''      @name: Folders\n'''
-            '''      @arch type='xml'\n'''
-            '''         ~form $Folders version='7.0'\n'''
-            '''            ~group\n'''
-            '''               ~group\n'''
-            '''                  @id invisibility='1'\n'''
-            '''                  @name\n'''
-            '''                  @path\n'''
-            '''               ~group\n'''
-            '''                  @folder_type\n'''
-        )))
+        result = list(xaml.Tokenizer(([
+            '''!!! xml''',
+            '''~openerp''',
+            '''   ~record #fax_id view="ui.ir.view"''',
+            '''      @name: Folders''',
+            '''      @arch type="xml"''',
+            '''         ~form $Folders version="7.0"''',
+            '''            ~group''',
+            '''               ~group''',
+            '''                  @id invisibility="1"''',
+            '''                  @name''',
+            '''                  @path''',
+            '''               ~group''',
+            '''                  @folder_type''',
+        ])))
         self.assertEqual(
             [
                 Token(TokenType.META, payload=('xml', '1.0')),
@@ -1827,7 +1880,7 @@ class TestTokenizer(TestCase):
             )
 
     def test_meta_token(self):
-        result = list(xaml.Tokenizer('!!! xml1.0'))
+        result = list(xaml.Tokenizer(['!!! xml1.0',]))
         self.assertEqual(
             [
                 Token(tt.META, ('xml', '1.0')),
@@ -1837,7 +1890,7 @@ class TestTokenizer(TestCase):
             )
 
     def test_string_tokens(self):
-        result = list(xaml.Tokenizer('~test_tag $This_could_be_VERY_cool!'))
+        result = list(xaml.Tokenizer(['~test_tag $This_could_be_VERY_cool!',]))
         self.assertEqual(
             [
                 Token(tt.ELEMENT, 'test_tag'),
@@ -1848,7 +1901,7 @@ class TestTokenizer(TestCase):
             )
 
     def test_code_data(self):
-        result = list(xaml.Tokenizer('~top_tag\n  ~record_tag\n    @Setting: = a_var'))
+        result = list(xaml.Tokenizer(['~top_tag', '  ~record_tag', '    @Setting: = a_var']))
         self.assertEqual(
             [
                 Token(tt.ELEMENT, 'top_tag'),
@@ -1864,6 +1917,186 @@ class TestTokenizer(TestCase):
             ],
             result,
             )
+
+
+class TestMultiDoc(TestCase):
+
+    def test_xml_xml(self):
+        input = (
+            '''!!!xml1.0\n'''
+            '''~items\n'''
+            '''    ~item @id type='fields'\n'''
+            '''        ~name @name type='field'\n'''
+            '''        ~price @retail type='field'\n'''
+            '''\n'''
+            '''!!!xml1.0\n'''
+            '''~xsl:stylesheet version='1.0'\n'''
+            '''\n'''
+            '''    ~xsl:template match='/'\n'''
+            '''        ~xsl:apply-templates select='items'\n'''
+            )
+        xml1 = (
+            '''<?xml version="1.0"?>\n'''
+            '''<items>\n'''
+            '''    <item name="id" type="fields">\n'''
+            '''        <name name="name" type="field"/>\n'''
+            '''        <price name="retail" type="field"/>\n'''
+            '''    </item>\n'''
+            '''</items>'''
+            )
+        xml2 = (
+            '''<?xml version="1.0" encoding="utf-8"?>\n'''
+            '''<xsl:stylesheet version="1.0">\n'''
+            '''\n'''
+            '''    <xsl:template match="/">\n'''
+            '''        <xsl:apply-templates select="items"/>\n'''
+            '''    </xsl:template>\n'''
+            '''\n'''
+            '''</xsl:stylesheet>'''
+            ).encode('utf-8')
+        doc = Xaml(input.encode('utf-8')).document
+        self.assertEqual(len(doc.pages), 2)
+        self.assertEqual([p.doc_type for p in doc.pages], ['xml', 'xml'])
+        self.assertEqual(doc.pages[0].string(), xml1)
+        self.assertEqual(doc.pages[1].bytes(), xml2)
+
+    def test_xml_multi_root(self):
+        input = (
+            '''!!!xml1.0\n'''
+            '''~items\n'''
+            '''    ~item @id type='fields'\n'''
+            '''        ~name @name type='field'\n'''
+            '''        ~price @retail type='field'\n'''
+            '''\n'''
+            '''!!!xml1.0\n'''
+            '''~stuffs xml:lang='en-US'\n'''
+            '''    ~blah @id type='fields'\n'''
+            '''        ~name @name type='field'\n'''
+            '''        ~price @retail type='field'\n'''
+            '''\n'''
+            )
+        xml1 = (
+            '''<?xml version="1.0"?>\n'''
+            '''<items>\n'''
+            '''    <item name="id" type="fields">\n'''
+            '''        <name name="name" type="field"/>\n'''
+            '''        <price name="retail" type="field"/>\n'''
+            '''    </item>\n'''
+            '''</items>'''
+            )
+        xml2 = (
+            '''<?xml version="1.0"?>\n'''
+            '''<stuffs xml:lang="en-US">\n'''
+            '''    <blah name="id" type="fields">\n'''
+            '''        <name name="name" type="field"/>\n'''
+            '''        <price name="retail" type="field"/>\n'''
+            '''    </blah>\n'''
+            '''</stuffs>'''
+            )
+        doc = Xaml(input.encode('utf-8')).document
+        self.assertEqual(len(doc.pages), 2)
+        self.assertEqual([p.doc_type for p in doc.pages], ['xml', 'xml'])
+        self.assertEqual(doc.pages[0].string(), xml1)
+        self.assertEqual(doc.pages[1].string(), xml2)
+
+    def test_xml_xml_xml(self):
+        input = (
+            '''!!!xml1.0\n'''
+            '''~items\n'''
+            '''    ~item @id type='fields'\n'''
+            '''        ~name @name type='field'\n'''
+            '''        ~price @retail type='field'\n'''
+            '''\n'''
+            '''!!!xml1.0\n'''
+            '''~stuffs xml:lang='en-US'\n'''
+            '''    ~blah @id type='fields'\n'''
+            '''        ~name @name type='field'\n'''
+            '''        ~price @retail type='field'\n'''
+            '''!!!xml1.0\n'''
+            '''~more-stuffs xml:lang='en-US'\n'''
+            '''    ~blah @id type='fields'\n'''
+            '''        ~name @name type='field'\n'''
+            '''        ~size @retail type='field'\n'''
+            '''\n'''
+            )
+        xml1 = (
+            '''<?xml version="1.0"?>\n'''
+            '''<items>\n'''
+            '''    <item name="id" type="fields">\n'''
+            '''        <name name="name" type="field"/>\n'''
+            '''        <price name="retail" type="field"/>\n'''
+            '''    </item>\n'''
+            '''</items>'''
+            )
+        xml2 = (
+            '''<?xml version="1.0"?>\n'''
+            '''<stuffs xml:lang="en-US">\n'''
+            '''    <blah name="id" type="fields">\n'''
+            '''        <name name="name" type="field"/>\n'''
+            '''        <price name="retail" type="field"/>\n'''
+            '''    </blah>\n'''
+            '''</stuffs>'''
+            )
+        xml3 = (
+            '''<?xml version="1.0"?>\n'''
+            '''<more-stuffs xml:lang="en-US">\n'''
+            '''    <blah name="id" type="fields">\n'''
+            '''        <name name="name" type="field"/>\n'''
+            '''        <size name="retail" type="field"/>\n'''
+            '''    </blah>\n'''
+            '''</more-stuffs>'''
+            )
+        doc = Xaml(input.encode('utf-8')).document
+        self.assertEqual(len(doc.pages), 3)
+        self.assertEqual([p.doc_type for p in doc.pages], ['xml', 'xml', 'xml'])
+        self.assertEqual(doc.pages[0].string(), xml1)
+        self.assertEqual(doc.pages[1].string(), xml2)
+        self.assertEqual(doc.pages[2].string(), xml3)
+
+    def test_xml_xsl(self):
+        input = (
+            '''!!!xml1.0\n'''
+            '''~items\n'''
+            '''    ~item @id type='fields'\n'''
+            '''        ~name @name type='field'\n'''
+            '''        ~price @retail type='field'\n'''
+            '''\n'''
+            '''!!!xsl1.0\n'''
+            '''~xsl\n'''
+            '''\n'''
+            '''    ~xsl:template match='/'\n'''
+            '''        ~xsl:apply-templates select='items'\n'''
+            )
+        xml = (
+            '''<?xml version="1.0"?>\n'''
+            '''<items>\n'''
+            '''    <item name="id" type="fields">\n'''
+            '''        <name name="name" type="field"/>\n'''
+            '''        <price name="retail" type="field"/>\n'''
+            '''    </item>\n'''
+            '''</items>'''
+            )
+        xsl = (
+            '''<?xml version="1.0"?>\n'''
+            '''<xsl:stylesheet version="1.0" xmlns:fo="http://www.w3.org/1999/XSL/Format" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">\n'''
+            '''\n'''
+            '''    <xsl:template match="/">\n'''
+            '''        <xsl:apply-templates select="items"/>\n'''
+            '''    </xsl:template>\n'''
+            '''\n'''
+            '''</xsl:stylesheet>'''
+            )
+        doc = Xaml(input.encode('utf-8')).document
+        self.assertEqual(len(doc.pages), 2)
+        self.assertEqual([p.doc_type for p in doc.pages], ['xml', 'xsl'])
+        self.assertEqual(doc.pages[0].string(), xml)
+        self.assertEqual(doc.pages[1].string(), xsl)
+
+    # def test_html_html(self):
+    #     raise NotImplementedError()
+
+    # def test_html_css(self):
+    #     raise NotImplementedError()
 
 
 def xml2dict(line):

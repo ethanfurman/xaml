@@ -15,30 +15,40 @@ def main():
 
 
 @Command(
-        file=('xaml file to convert to xml', REQUIRED, 'f', Path),
-        dest=('name of destination file [default: same name with .xaml -> .xml]', OPTION, 'd', Path),
+        file=('xaml file to convert', REQUIRED, 'f', Path),
+        dest=('name of destination file [default: same name with appropriate extension]', OPTION, 'd', Path),
         same_dir=('create DEST in same directory as FILE [default: current directory]', FLAG),
         type=Spec('specify type of document to convert to', OPTION, choices=['xml','html']),
         )
 def xaml(file, dest, same_dir, type):
     "convert FILE to xml/html/css/..."
     if dest is None:
-        if file.ext == '.xaml':
-            dest = file.strip_ext()
-        else:
-            dest = file
+        dest = file.strip_ext()
     if not same_dir:
         dest = dest.filename
     print('converting %s' % (file, ))
     with open(file) as source:
         xaml_doc = Xaml(source.read(), doc_type=type).document
-    if display:
-        print(xaml_doc.string(), verbose=0)
+    if len(xaml_doc.pages) > 1 and dest.ext:
+        target = 'single'
     else:
-        dest += '.' + (xaml_doc.ml and xaml_doc.ml.type or 'xml')
+        target = 'multiple'
+    output = []
+    for page in xaml_doc:
+        if display:
+            print(page.string(), verbose=0)
+        else:
+            output.append(page.bytes())
+    if target == 'single':
         print('writing %s' % (dest, ))
-        with open(dest, 'wb') as target:
-            target.write(xaml_doc.bytes())
+        with open(dest, 'wb') as file_target:
+            file_target.write(''.join(output))
+    else:
+        for data, page in zip(output, xaml_doc):
+            file_target = dest + '.' + page.ml.type
+            print('writing %s' % file_target)
+            with open(file_target, 'wb') as file_target:
+                file_target.write(data)
 
 
 @Command(

@@ -16,7 +16,7 @@ import unicodedata
 __all__ = ['Xaml', ]
 __metaclass__ = type
 
-version = 0, 5, 7
+version = 0, 6, 0
 
 module = globals()
 
@@ -27,7 +27,7 @@ except NameError:
     unichr = chr
 
 # only change default_encoding if you cannot specify the proper encoding with a meta tag
-default_encoding = 'utf-8'
+DEFAULT_ENCODING = 'utf-8'
 
 # helpers
 
@@ -93,6 +93,24 @@ class TokenType(AutoEnum):
     TEXT        = 'text to go with something special'
 tt = TokenType
 
+class LazyAttr(object):
+    """
+    doesn't create object until actually accessed
+    """
+
+    def __init__(self, func=None, doc=None):
+        self.func = func
+        self.__doc__ = doc or func.__doc__
+
+    def __call__(self, func):
+        self.func = func
+
+    def __get__(self, instance, owner):
+        if instance is None:
+            return self
+        result = self.func(instance)
+        setattr(instance, self.func.__name__, result)
+        return result
 
 def _leading(line):
     """
@@ -122,40 +140,12 @@ class PPLCStream:
 
     current_line = None
 
-    def __init__(self, text):
-        i = None
-        if not isinstance(text, unicode):
-            encoding = 'utf-8'
-            first_lines = text[:256].split(b'\n')
-            for i, line in enumerate(first_lines):
-                if not line.startswith(b'!!!'):
-                    i = None
-                    break
-                match = re.search('coding\s*[:=]\s*([-\w.]*)', line.decode('ascii'))
-                if match:
-                    encoding = match.groups()[0]
-                    if not encoding:
-                        raise XamlError("no encoding specified in code line")
-                    break
-            else:
-                i = None
-            try:
-                text = text.decode(encoding)
-            except LookupError:
-                exc = sys.exc_info()[1]
-                raise XamlError(exc)
-        text = text.rstrip().split('\n')
-        if i is not None:
-            del text[i]
-        for i, line in enumerate(text):
-            for ch in invalid_xml_chars:
-                if ch in line:
-                    raise InvalidXmlCharacter(i, 'Character %r not allowed in xaml documents' % ch)
-        self.data = text
+    def __init__(self, lines):
+        self.data = lines
         self.data.reverse()
         self.chars = []
         self.lines = []
-        self.line = 0
+        self.lineno = 0
 
     def get_char(self):
         if not self.chars:
@@ -170,11 +160,20 @@ class PPLCStream:
             line = ''.join(self.chars).rstrip('\n')
             self.chars = []
         elif self.lines:
-            line = self.lines.pop()
-            self.line += 1
+            line = None
+            while line is None:
+                line = self.lines.pop()
+                self.lineno += 1
         elif self.data:
-            line = self.data.pop()
-            self.line += 1
+            line = None
+            while line is None:
+                try:
+                    line = self.data.pop()
+                except IndexError:
+                    self.current_line = None
+                    return None
+                else:
+                    self.lineno += 1
         else:
             self.current_line = None
             return None
@@ -223,8 +222,8 @@ class PPLCStream:
             self.chars = []
             if char_line:
                 self.lines.append(char_line.rstrip('\n'))
-                self.line -= 1
-        self.line -= 1
+                self.lineno -= 1
+        self.lineno -= 1
         line = line.rstrip('\n')
         self.lines.append(line)
         self.current_line = line
@@ -273,8 +272,12 @@ class Tokenizer:
             '$' : 'string',
             }
 
-    def __init__(self, text):
-        self.data = PPLCStream(text)
+    def __init__(self, lines):
+        self.skipped_lines = sl = 0
+        while lines and not lines[0]:
+            sl += 1
+            lines.pop(0)
+        self.data = PPLCStream(lines)
         self.state = [s.NORMAL]
         self.indents = [0]
         self.open_parens = 0
@@ -324,16 +327,16 @@ class Tokenizer:
                 self.open_parens -= 1
                 self._consume_ws()
                 if self.data.peek_char() not in ('\n', None):
-                    raise ParseError(self.data.line, 'nothing allowed on same line after ")"')
+                    raise ParseError(self.data.lineno+self.skipped_lines, 'nothing allowed on same line after ")"')
                 return self.get_token()
         elif ch in '/:\n':
             if self.open_parens:
-                raise ParseError(self.data.line, 'unclosed parens')
+                raise ParseError(self.data.lineno+self.skipped_lines, 'unclosed parens')
             self.data.get_char()
             self.state.pop()
             if ch == ':':
                 if not self.data.peek_line().strip():
-                    raise ParseError(self.data.line, 'nothing after :')
+                    raise ParseError(self.data.lineno+self.skipped_lines, 'nothing after :')
                 self.state.append(s.DATA)
             elif ch == '/':
                 self.state.append(s.CONTENT)
@@ -492,13 +495,13 @@ class Tokenizer:
                 ch = self.data.get_char()
             name = ''.join(name)
             if not name:
-                raise ParseError(self.data.line, 'null name not allowed:\n\t%s' % self.data.current_line)
+                raise ParseError(self.data.lineno+self.skipped_lines, 'null name not allowed:\n\t%s' % self.data.current_line)
             if ch in '(':
                 self.open_parens += 1
             elif ch in ')':
                 self.open_parens -= 1
                 if self.open_parens < 0:
-                    raise ParseError(self.data.line, 'mismatched parenthesis')
+                    raise ParseError(self.data.lineno+self.skipped_lines, 'mismatched parenthesis')
             elif ch == ' ':
                 self._consume_ws()
             else:
@@ -506,7 +509,7 @@ class Tokenizer:
         # verify first character is legal
         ch = name[0]
         if ch in'-.' or unicodedata.category(ch)[0] == 'N':
-            raise ParseError(self.data.line, 'tag name cannot start with . - or digit: %r' % name)
+            raise ParseError(self.data.lineno+self.skipped_lines, 'tag name cannot start with . - or digit: %r' % name)
         return name, default
 
     def _get_parens(self, line):
@@ -530,13 +533,13 @@ class Tokenizer:
         quote = None
         if ch in ('"', "'", '`'):
             if no_quotes and ch != '`':
-                raise ParseError(self.date.line, 'out-of-place quote')
+                raise ParseError(self.data.lineno+self.skipped_lines, 'out-of-place quote')
             quote = ch
             ch = self.data.get_char()
         while 'collecting value':
             if ch is None:
                 if quote:
-                    raise ParseError(self.data.line, 'unclosed quote while collecting value for %r: %r' % (''.join(value), ch))
+                    raise ParseError(self.data.lineno+self.skipped_lines, 'unclosed quote while collecting value for %r: %r' % (''.join(value), ch))
                 break
             if ch == quote:
                 # skip past quote and finish
@@ -545,15 +548,15 @@ class Tokenizer:
             elif quote and ch != '\\':
                 if ch == '\n':
                     if quote == '`':
-                        raise ParseError(self.date.line, 'embedded newlines illegal in attribute level python code')
+                        raise ParseError(self.data.lineno+self.skipped_lines, 'embedded newlines illegal in attribute level python code')
                     ch = ' '
                 value.append(ch)
             elif ch in ('"', "'", '`'):
-                raise ParseError(self.data.line, 'embedded quote in:\n\t%s' % self.data.current_line)
+                raise ParseError(self.data.lineno+self.skipped_lines, 'embedded quote in:\n\t%s' % self.data.current_line)
             elif ch == '\\':
                 ch = self.data.get_char()
                 if ch == '\n':
-                    raise ParseError(self.date.line, 'newlines cannot be escaped')
+                    raise ParseError(self.data.lineno+self.skipped_lines, 'newlines cannot be escaped')
                 value.append('\\')
                 value.append(ch)
             elif ch in ' )(/:\n':
@@ -565,12 +568,12 @@ class Tokenizer:
         if ch in ')':
             self.open_parens -= 1
             if self.open_parens < 0:
-                raise ParseError(self.date.line, 'unbalanced parentheses')
+                raise ParseError(self.data.lineno+self.skipped_lines, 'unbalanced parentheses')
         elif ch in '(':
             self.open_parens += 1
             self._consume_ws(include='\n')
         elif ch not in (' ', '\n', ':', '/', None):
-            raise ParseError(self.data.line, 'invalid character after value %r' % ''.join(value))
+            raise ParseError(self.data.lineno+self.skipped_lines, 'invalid character after value %r' % ''.join(value))
         else:
             self.data.push_char(ch)
             self._consume_ws()
@@ -670,12 +673,13 @@ class Tokenizer:
             self.last_token = self._get_data()
             return self.last_token
         else:
-            raise ParseError(self.data.line, 'unknown state: %s' % state)
+            raise ParseError(self.data.lineno+self.skipped_lines, 'unknown state: %s' % state)
 
 class ML:
 
     doc_types = {
             'xml': ['1.0', '1.1'],
+            'xsl': ['1.0', ],
             'html': ['5', '4', '4t', '4s', '4-transitional', '4-strict'],
             }
     doc_headers = {
@@ -687,14 +691,15 @@ class ML:
             'html4-transitional': ('<!', 'DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd"', '>'),
             'xml1.0': ('<?', 'xml version="1.0"', '?>'),
             'xml1.1': ('<?', 'xml version="1.1"', '?>'),
+            'xsl1.0': ('<?', 'xml version="1.0"', '?>'),
             }
 
     def __init__(self, values):
         if 'type' not in values:
             raise XamlError('type must be specified when creating ML')
-        self.encoding = values.pop('encoding', default_encoding)
+        self.encoding = values.pop('encoding', DEFAULT_ENCODING)
         self.type = values.pop('type')
-        version = values.pop('version', {'xml':'1.0', 'html':'5'}[self.type])
+        version = values.pop('version', {'xml':'1.0', 'xsl':'1.0', 'html':'5'}[self.type])
         if version[5:6] == '-':
             version = version[:5] + version[6]
         self.version = version
@@ -728,121 +733,151 @@ class ML:
 class Xaml(object):
 
     def __init__(self, text, _parse=True, _compile=True, doc_type=None, **namespace):
-        iter_tokens = Tokenizer(text)
-        self._tokens = []
-        # check if html
-        i = -1
-        seeking_head = False
-        if doc_type == 'html':
-            # 'html' override, set default now
-            iter_tokens.defaults['~'] = 'div'
-            iter_tokens.lock_elements = ('script', 'style', )
-        if doc_type in (None, 'html'):
-            for token in iter_tokens:
-                self._tokens.append(token)
-                i += 1
-                if seeking_head:
-                    if token.type is not tt.ELEMENT:
-                        continue
-                    elif token.payload[0] == 'body':
-                        # found body without head
-                        # insert head and charset
-                        self._tokens[i:i] = [
-                                Token(tt.ELEMENT, 'head'),
-                                Token(tt.INDENT),
-                                Token(tt.ELEMENT, 'meta'),
-                                Token(tt.STR_ATTR, ('charset', 'utf-8')),
-                                Token(tt.DEDENT),
-                                ]
-                        break
-                    elif token.payload[0] == 'head':
-                        i += 1
-                        next_token = next(iter_tokens)
-                        self._tokens.append(next_token)
-                        need_dedent = False
-                        if next_token.type != tt.INDENT:
-                            self._tokens[i:i] = [
-                                    Token(tt.INDENT),
-                                    ]
-                            need_dedent = True
-                        i += 1
-                        self._tokens[i:i] = [
-                                Token(tt.ELEMENT, 'meta'),
-                                Token(tt.STR_ATTR, ('charset', 'utf-8')),
-                                ]
-                        i += 2
-                        if need_dedent:
-                            self._tokens[i:i] = [
-                                    Token(tt.DEDENT),
-                                    ]
-                        break
-                if token.type in (tt.INDENT, ):
-                    break
-                if token.type is tt.META and token.payload[0] == 'html':
-                    doc_type = 'html'
+        streams = split_streams(decode(text))
+        docs = self._document = XamlDoc(streams)
+        if _parse:
+            for page in docs.pages:
+                page_doc_type = doc_type
+                iter_tokens = Tokenizer(list(page.raw))
+                page._tokens = []
+                # check if html
+                i = -1
+                if page_doc_type == 'html':
+                    # 'html' override, set default now
                     iter_tokens.defaults['~'] = 'div'
                     iter_tokens.lock_elements = ('script', 'style', )
-                    # this is an html document; scan for head and/or body
-                    seeking_head = True
-        self._tokens.extend(list(iter_tokens))
-        self.doc_type = doc_type
-        self._depth = [Token(None)]
-        # indents tracks valid indentation levels
-        self._indents = Indent(level=1)
-        self._coder = minimal
-        self.ml = None
-        self._encoding = default_encoding
-        if _parse:
-            self._document = self._parse(_compile=_compile, **namespace)
-        else:
-            self._document = None
+                if page_doc_type in (None, 'html', 'xsl'):
+                    seeking_head = seeking_xsl = False
+                    xsl_found = {
+                            'version': False,
+                            'xmlns:fo': False,
+                            'xmlns:xsl': False,
+                            }
+                    for token in iter_tokens:
+                        page._tokens.append(token)
+                        i += 1
+                        if seeking_xsl:
+                            if token.type is not tt.ELEMENT:
+                                continue
+                            elif token.payload[0] in ('xsl', 'xsl:stylesheet'):
+                                token.payload = ('xsl:stylesheet', )
+                                i += 1
+                                next_token = next(iter_tokens)
+                                page._tokens.append(next_token)
+                                while next_token.type in (tt.STR_ATTR, tt.CODE_ATTR):
+                                    xsl_found[next_token.payload[0]] = True
+                                    next_token = next(iter_tokens)
+                                    i += 1
+                                    page._tokens.append(next_token)
+                                for attr, present in xsl_found.items():
+                                    if not present:
+                                        page._tokens[i:i] = [Token(tt.STR_ATTR, (attr, xsl_attr[attr]))]
+                                break
+                        if seeking_head:
+                            if token.type is not tt.ELEMENT:
+                                continue
+                            elif token.payload[0] == 'body':
+                                # found body without head
+                                # insert head and charset
+                                page._tokens[i:i] = [
+                                        Token(tt.ELEMENT, 'head'),
+                                        Token(tt.INDENT),
+                                        Token(tt.ELEMENT, 'meta'),
+                                        Token(tt.STR_ATTR, ('charset', 'utf-8')),
+                                        Token(tt.DEDENT),
+                                        ]
+                                break
+                            elif token.payload[0] == 'head':
+                                i += 1
+                                next_token = next(iter_tokens)
+                                page._tokens.append(next_token)
+                                need_dedent = False
+                                if next_token.type != tt.INDENT:
+                                    page._tokens[i:i] = [
+                                            Token(tt.INDENT),
+                                            ]
+                                    need_dedent = True
+                                i += 1
+                                page._tokens[i:i] = [
+                                        Token(tt.ELEMENT, 'meta'),
+                                        Token(tt.STR_ATTR, ('charset', 'utf-8')),
+                                        ]
+                                i += 2
+                                if need_dedent:
+                                    page._tokens[i:i] = [
+                                            Token(tt.DEDENT),
+                                            ]
+                                break
+                        if token.type in (tt.INDENT, ):
+                            break
+                        if token.type is tt.META:
+                            if token.payload[0] == 'xsl':
+                                page_doc_type = 'xsl'
+                                seeking_xsl = True
+                            if token.payload[0] == 'html':
+                                page_doc_type = 'html'
+                                iter_tokens.defaults['~'] = 'div'
+                                iter_tokens.lock_elements = ('script', 'style', )
+                                # this is an html document; scan for head and/or body
+                                seeking_head = True
+                page._tokens.extend(list(iter_tokens))
+                page.doc_type = page_doc_type
+                page._depth = [Token(None)]
+                # indents tracks valid indentation levels
+                page._indents = Indent(level=1)
+                page._coder = minimal
+                page.ml = None
+                if _parse:
+                    self._parse(page, _compile=_compile, **namespace)
 
     @property
     def document(self):
         return self._document
 
-    def _append_newline(self):
-        if self._depth[-1].type not in (tt.INDENT, tt.BLANK_LINE, None):
-            self._depth.append(Token(tt.BLANK_LINE))
+    @staticmethod
+    def _append_newline(page):
+        if page._depth[-1].type not in (tt.INDENT, tt.BLANK_LINE, None):
+            page._depth.append(Token(tt.BLANK_LINE))
 
-    def _check_for_newline(self, token):
+    @staticmethod
+    def _check_for_newline(page, token):
         if token.type is not tt.BLANK_LINE:
             return token, False
         else:
-            return self._depth[-2], self._depth.pop()
+            return page._depth[-2], page._depth.pop()
 
-    def _parse(self, _parse=True, _compile=True, **namespace):
+    def _parse(self, page, _compile=True, **namespace):
         output = []
         attrs = {}
         data = None
         meta = {}
-        doc_type = self.doc_type
-        for token in self._tokens:
-            last_token = self._depth and self._depth[-1] or Token(None)
+        doc_type = page.doc_type
+        for token in page._tokens:
+            last_token = page._depth and page._depth[-1] or Token(None)
             if last_token.type is tt.META:
                 if token.type is tt.STR_ATTR:
                     name, value = token.payload
                     meta[name] = value
                     continue
                 elif token.type not in (tt.CODE_ATTR, tt.STR_DATA, tt.CODE_DATA):
-                    self.ml = ML(meta)
-                    if doc_type and doc_type != self.ml.type:
-                        self.ml = None
+                    page.ml = ML(meta)
+                    if doc_type and doc_type != page.ml.type:
+                        page.ml = None
                     else:
-                        doc_type = self.doc_type = self.ml.type
-                        self._coder = ml_types.get(self.ml.key)
-                        if self._coder is None:
-                            raise ParseError('markup language %r not supported' % self.ml.key)
-                    self._depth.pop()
+                        doc_type = page.doc_type = page.ml.type
+                        page._coder = ml_types.get(page.ml.key)
+                        if page._coder is None:
+                            raise ParseError('markup language %r not supported' % page.ml.key)
+                    page._depth.pop()
                     if token.type is tt.DEDENT:
                         break
                 else:
                     raise ParseError('Token %s not allowed in/after META token' % token)
             elif last_token.type is tt.COMMENT:
                 if token.type is not tt.COMMENT:
-                    output.append(self._indents.blanks + '        )\n')
-                    self._depth.pop()
-                    last_token = self._depth[-1]
+                    output.append(page._indents.blanks + '        )\n')
+                    page._depth.pop()
+                    last_token = page._depth[-1]
             # ATTR
             if token.type in (tt.CODE_ATTR, tt.STR_ATTR):
                 assert last_token.type is tt.ELEMENT, 'the tokenizer is busted (ATTR and last is %r [current: %r])' % (last_token, token)
@@ -850,44 +885,44 @@ class Xaml(object):
                 if name in attrs and name != 'class':
                     raise ParseError('attribute %r already specified' % name)
                 if token.type is tt.STR_ATTR and token.make_safe:
-                    value = self._coder(value)
+                    value = page._coder(value)
                     value = repr(value)
                 if name in attrs:
                     value = attrs[name] + ' + u" " + ' + value
                 attrs[name] = value
             # COMMENT
             elif token.type is tt.COMMENT:
-                last_token, pending_newline = self._check_for_newline(last_token)
+                last_token, pending_newline = self._check_for_newline(page, last_token)
                 if last_token.type is tt.ELEMENT:
                     output[-1] += join(attrs, data)
                     attrs = {}
                     data = None
-                    self._depth.pop()
+                    page._depth.pop()
                     if pending_newline:
-                        self._append_newline()
+                        self._append_newline(page)
                 if pending_newline:
-                    output.append(self._indents.blanks + 'Blank()\n')
-                if self._depth[-1].type is not tt.COMMENT:
-                    self._depth.append(token)
-                    output.append(self._indents.blanks + 'Comment(\n')
-                output.append(self._indents.blanks + '        %r,\n' % token.payload)
+                    output.append(page._indents.blanks + 'Blank()\n')
+                if page._depth[-1].type is not tt.COMMENT:
+                    page._depth.append(token)
+                    output.append(page._indents.blanks + 'Comment(\n')
+                output.append(page._indents.blanks + '        %r,\n' % token.payload)
             # CONTENT
             elif token.type is tt.CONTENT:
-                last_token, pending_newline = self._check_for_newline(last_token)
+                last_token, pending_newline = self._check_for_newline(page, last_token)
                 if last_token.type is tt.ELEMENT:
                     # close previous element
                     output[-1] += join(attrs, data)
                     attrs = {}
                     data = None
-                    self._depth.pop()
+                    page._depth.pop()
                 if pending_newline:
-                    output.append(self._indents.blanks + 'Blank()\n')
-                    self._append_newline()
+                    output.append(page._indents.blanks + 'Blank()\n')
+                    self._append_newline(page)
                 value = token.payload[0]
                 if token.make_safe:
-                    value = self._coder(value)
+                    value = page._coder(value)
                 value = repr(value)
-                output.append(self._indents.blanks + 'Content(%s)\n' % value)
+                output.append(page._indents.blanks + 'Content(%s)\n' % value)
             # DATA
             elif token.type in (tt.CODE_DATA, tt.STR_DATA):
                 value ,= token.payload
@@ -895,66 +930,66 @@ class Xaml(object):
                     pass
                 if token.type is tt.STR_DATA:
                     if token.make_safe:
-                        value = self._coder(value)
+                        value = page._coder(value)
                     value = repr(value)
                 data =  value
             # DEDENT
             elif token.type is tt.DEDENT:
-                last_token, pending_newline = self._check_for_newline(last_token)
+                last_token, pending_newline = self._check_for_newline(page, last_token)
                 # need to close the immediately preceeding tag, and the
                 # tags dedented to
-                self._indents.dec()
+                page._indents.dec()
                 if last_token.type is tt.ELEMENT:
                     output[-1] += join(attrs, data)
                     attrs = {}
                     data = None
-                    self._depth.pop()
-                should_be_indent = self._depth.pop()
+                    page._depth.pop()
+                should_be_indent = page._depth.pop()
                 assert should_be_indent.type in (tt.INDENT, None), 'something broke: %s\n%s' % (should_be_indent, ''.join(output))
                 try:
-                    last_token = self._depth[-1]
+                    last_token = page._depth[-1]
                 except IndexError:
                     # all done!
                     break
                 if last_token.type is tt.BLANK_LINE:
                     output.append('\n')
-                    self._depth.pop()
-                    last_token = self._depth[-1]
-                    self._indents.dec()
+                    page._depth.pop()
+                    last_token = page._depth[-1]
+                    page._indents.dec()
                 if last_token.type is tt.ELEMENT:
-                    closing_token = self._depth.pop()
+                    closing_token = page._depth.pop()
                 if pending_newline:
-                    self._depth.append(pending_newline)
+                    page._depth.append(pending_newline)
             # ELEMENT
             elif token.type is tt.ELEMENT:
-                last_token, pending_newline = self._check_for_newline(last_token)
+                last_token, pending_newline = self._check_for_newline(page, last_token)
                 if last_token.type is tt.ELEMENT:
                     # close previous element
                     output[-1] += join(attrs, data)
                     attrs = {}
                     data = None
-                    self._depth.pop()
+                    page._depth.pop()
                 if pending_newline:
-                    output.append(self._indents.blanks + 'Blank()\n')
-                    self._append_newline()
-                output.append(self._indents.blanks)
+                    output.append(page._indents.blanks + 'Blank()\n')
+                    self._append_newline(page)
+                output.append(page._indents.blanks)
                 output.append('Element(%r' % token.payload)
-                self._depth.append(token)
+                page._depth.append(token)
             # FILTER
             elif token.type is tt.FILTER:
-                last_token, pending_newline = self._check_for_newline(last_token)
+                last_token, pending_newline = self._check_for_newline(page, last_token)
                 if last_token.type is tt.ELEMENT:
                     # close previous element
                     output[-1] += join(attrs, data)
                     attrs = {}
                     data = None
-                    self._depth.pop()
+                    page._depth.pop()
                 if pending_newline:
-                    output.append(self._indents.blanks + 'Blank()\n')
-                    self._append_newline()
+                    output.append(page._indents.blanks + 'Blank()\n')
+                    self._append_newline(page)
                 name, lines = token.payload
                 pieces = name.split()
-                blank = self._indents.blanks
+                blank = page._indents.blanks
                 if len(pieces) > 1:
                     name = pieces[0]
                     for string in pieces[1:]:
@@ -990,25 +1025,25 @@ class Xaml(object):
                 attrs = {}
             # INDENT
             elif token.type is tt.INDENT:
-                last_token, pending_newline = self._check_for_newline(last_token)
+                last_token, pending_newline = self._check_for_newline(page, last_token)
                 with_ele = False
                 if last_token.type is tt.ELEMENT:
                     output[-1] = 'with %s' % output[-1] + join(attrs, data, ':')
                     attrs = {}
                     data = None
                     with_ele = True
-                self._indents.inc()
+                page._indents.inc()
                 if pending_newline:
                     if with_ele:
-                        output.append(self._indents.blanks + 'with Blank(mirror=True):\n')
-                        self._indents.inc()
+                        output.append(page._indents.blanks + 'with Blank(mirror=True):\n')
+                        page._indents.inc()
                     else:
-                        output.append(self._indents.blanks + 'Blank()\n')
-                    self._append_newline()
-                self._depth.append(token)
+                        output.append(page._indents.blanks + 'Blank()\n')
+                    self._append_newline(page)
+                page._depth.append(token)
             # META
             elif token.type is tt.META:
-                if len(self._depth) != 1 or self._depth[0].type != None:
+                if len(page._depth) != 1 or page._depth[0].type != None:
                     raise ParseError('meta tags (such as %r) cannot be nested' % (token.payload,))
                 name, value = token.payload
                 if name in ML.doc_types and value in ML.doc_types[name]:
@@ -1016,26 +1051,26 @@ class Xaml(object):
                     meta['version'] = value
                 else:
                     raise ParseError('unknown META: %r' % ((name, value), ))
-                self._depth.append(token)
+                page._depth.append(token)
             # PYTHON
             elif token.type is tt.PYTHON:
-                last_token, pending_newline = self._check_for_newline(last_token)
+                last_token, pending_newline = self._check_for_newline(page, last_token)
                 if last_token.type is tt.ELEMENT:
                     # close previous element
                     output[-1] += join(attrs, data)
                     attrs = {}
                     data = None
-                    self._depth.pop()
+                    page._depth.pop()
                 if pending_newline:
-                    output.append(self._indents.blanks + 'Blank()\n')
-                    self._append_newline()
-                output.append(self._indents.blanks + '%s\n' % token.payload)
+                    output.append(page._indents.blanks + 'Blank()\n')
+                    self._append_newline(page)
+                output.append(page._indents.blanks + '%s\n' % token.payload)
             # BLANK_LINE
             elif token.type is tt.BLANK_LINE:
                 if last_token.type is tt.BLANK_LINE:
                     continue
                 else:
-                    self._depth.append(token)
+                    page._depth.append(token)
             # problem
             else:
                 raise ParseError('unknown token: %r' % token)
@@ -1141,43 +1176,54 @@ class Xaml(object):
                 """\n""",
                 """    return '\\n'.join(output)""",
                 ]
-        code = ''.join(pre_code+output+post_code)
+        page.code = code = ''.join(pre_code+output+post_code)
         glbls = globals().copy()
         glbls.update(namespace)
         glbls['doc_type'] = doc_type or 'xml'
         exec(''.join(global_code), glbls)
-        if _compile:
-            exec(code, glbls)
-            return XamlDoc(self.ml, code, glbls['generate'])
-        else:
-            return XamlDoc(self.ml, code, None)
+        page._glbls = glbls
 
 
-class XamlDoc:
+class XamlPage:
 
-    def __init__(self, ml, code, func):
-        self.ml = ml
-        self._code = code
-        self._func = func
-        if self.ml is not None:
-            self.encoding = ml.encoding
-        else:
-            self.encoding = default_encoding
-
-    def __repr__(self):
-        return '<%s document>' % (self.ml and self.ml.type or 'generic ml')
+    def __init__(self, stream):
+        # a stream is a list of unprocessed unicode lines
+        self.raw = tuple(stream)
+        self.doc_type = None
+        self.code = None
+        self.ml = None
 
     @property
-    def code(self):
-        return self._code
+    def encoding(self):
+        return self.ml and self.ml.encoding or DEFAULT_ENCODING
+
+    @LazyAttr
+    def generate(self):
+        if self.code is None:
+            raise XamlError('XamlPage has been parsed')
+        exec(self.code, self._glbls)
+        return self._glbls['generate']
+
+    def __repr__(self):
+        return '<%s document>' % (self.doc_type or 'unknown')
 
     def string(self, **kwds):
-        text = self._func(**kwds)
+        text = self.generate(**kwds)
         return str(self.ml or '') + text
 
     def bytes(self, **kwds):
-        text = self._func(**kwds)
+        text = self.generate(**kwds)
         return (self.ml and self.ml.bytes() or b'') + text.encode(self.encoding)
+
+class XamlDoc:
+
+    def __init__(self, streams):
+        self.pages = []
+        for stream in streams:
+            self.pages.append(XamlPage(stream))
+
+    def __iter__(self):
+        return iter(self.pages)
 
 
 class Indent:
@@ -1275,11 +1321,18 @@ def minimal(text):
 xmlify = minimal
 
 ml_types = {
+    'xsl1.0' : xmlify,
     'xml1.0' : xmlify,
     'html4'  : xmlify,
-    'html4t': xmlify,
+    'html4t' : xmlify,
     'html5'  : xmlify,
     }
+
+xsl_attr = {
+        'version': '1.0',
+        'xmlns:fo': 'http://www.w3.org/1999/XSL/Format',
+        'xmlns:xsl': 'http://www.w3.org/1999/XSL/Transform',
+        }
 
 html4s = html4_strict_elements = [
         'A', 'ABBR', 'ACRONYM', 'ADDRESS', 'AREA', 'B', 'BASE', 'BDO', 'BIG', 'BLOCKQUOTE', 'BODY', 'BR', 'BUTTON',
@@ -1337,3 +1390,58 @@ def join(attrs, data, trailing=''):
         string += '(%s)' % data
     string += trailing + '\n'
     return string
+
+def split_streams(text_lines):
+    '''
+    Return a list of text streams from a list of lines, one for each !!! declaration after data.
+    '''
+    current = []
+    streams = [current]
+    data_started = False
+    for lineno, line in enumerate(text_lines):
+        if line is None:
+            pass
+        elif line.startswith('!!!'):
+            if data_started:
+                # last "file" ended, next one begins
+                current = []
+                streams.append(current)
+                data_started = False
+        elif line.strip():
+            data_started = True
+        current.append(line)
+    return streams
+
+def decode(text):
+    "Decode text to unicode, return as list of lines."
+    i = None
+    if not isinstance(text, unicode):
+        encoding = 'utf-8'
+        first_lines = text[:256].split(b'\n')
+        for i, line in enumerate(first_lines):
+            if not line.startswith(b'!!!'):
+                i = None
+                break
+            match = re.search('coding\s*[:=]\s*([-\w.]*)', line.decode('ascii'))
+            if match:
+                encoding = match.groups()[0]
+                if not encoding:
+                    raise XamlError("no encoding specified in code line")
+                break
+        else:
+            i = None
+        try:
+            text = text.decode(encoding)
+        except LookupError:
+            exc = sys.exc_info()[1]
+            raise XamlError(exc)
+    code_line = i
+    lines = text.rstrip().split('\n')
+    for i, line in enumerate(lines):
+        for ch in invalid_xml_chars:
+            if ch in line:
+                raise InvalidXmlCharacter(i, 'Character %r not allowed in xaml documents' % ch)
+    if code_line is not None:
+        lines[code_line] = None
+    return lines
+
