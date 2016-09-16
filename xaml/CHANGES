@@ -1,3 +1,17 @@
+0.6.0  -- BREAKING CHANGE
+=====
+XamlDoc is now a container for XamlPage's, which have the attributes a XamlDoc
+used to have.
+
+xaml files can now simultaneously contain several different docs, such as
+xml, xsl, html, etc
+
+__main__ script only supports writing all contained pages to a single file, or
+to different files with extension based on document type (in other words, if a
+file has two different xml docs in it the second created file will overwrite
+the first -- making this work properly is a future enhancement).
+
+
 0.5.7
 =====
 

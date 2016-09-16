@@ -70,7 +70,7 @@ make = []
 
 data = dict(
        name='xaml',
-       version='0.5.7',
+       version='0.6.0a1',
        license='BSD License',
        description='XML Abstract Markup Language',
        long_description=long_desc,
