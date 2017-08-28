@@ -1,3 +1,15 @@
+0.6.1
+=====
+
+allow a trailing / to preserve preceding white space:
+
+  ~some_item: some text with trailing WS:   /
+
+becomes
+
+  <some_item>some text with trailing WS:   </some_item>
+
+
 0.6.0  -- BREAKING CHANGE
 =====
 XamlDoc is now a container for XamlPage's, which have the attributes a XamlDoc
