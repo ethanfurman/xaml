@@ -447,6 +447,20 @@ class TestXaml(TestCase):
             )
         self.assertMultiLineEqual(expected, Xaml(input).document.pages[0].string())
 
+    def test_trailing_slashes_are_removed(self):
+        input = (
+            '''!!!xml1.0\n'''
+            '''~sample\n'''
+            '''    ~items: here's a line with blanks at the end  /\n'''
+            )
+        expected = (
+            '''<?xml version="1.0" encoding="utf-8"?>\n'''
+            '''<sample>\n'''
+            '''    <items>here's a line with blanks at the end  </items>\n'''
+            '''</sample>'''
+            ).encode('utf-8')
+        self.assertSequenceEqual(expected, Xaml(input).document.pages[0].bytes())
+
     def test_random_content(self):
         input = (
             '''~opentag\n'''

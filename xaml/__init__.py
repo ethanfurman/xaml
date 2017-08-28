@@ -362,11 +362,19 @@ class Tokenizer:
         return Token(tt.COMMENT, line)
 
     def _get_content(self):
-        line = self.data.get_line().rstrip()
+        line = self.data.get_line().rstrip('\n')
+        if line[-1:] == '/' and line[-2:] != '\\/':
+            line = line[:-1]
+        else:
+            line = line.rstrip()
         return Token(tt.CONTENT, line, make_safe=True if self.element_lock is None else False)
 
     def _get_data(self):
-        line = self.data.get_line().strip()
+        line = self.data.get_line().rstrip('\n')
+        if line[-1:] == '/' and line[-2:] != '\\/':
+            line = line[:-1].lstrip()
+        else:
+            line = line.strip()
         make_safe = True
         data_type = tt.STR_DATA
         if line[:2] == '!=':
