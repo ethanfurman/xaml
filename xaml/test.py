@@ -447,6 +447,20 @@ class TestXaml(TestCase):
             )
         self.assertMultiLineEqual(expected, Xaml(input).document.pages[0].string())
 
+    def test_slash_only_is_replaced_with_space(self):
+        input = (
+            '''!!!xml1.0\n'''
+            '''~sample\n'''
+            '''    ~items: /\n'''
+            )
+        expected = (
+            '''<?xml version="1.0" encoding="utf-8"?>\n'''
+            '''<sample>\n'''
+            '''    <items> </items>\n'''
+            '''</sample>'''
+            ).encode('utf-8')
+        self.assertSequenceEqual(expected, Xaml(input).document.pages[0].bytes())
+
     def test_trailing_slashes_are_removed(self):
         input = (
             '''!!!xml1.0\n'''

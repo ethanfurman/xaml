@@ -16,7 +16,7 @@ import unicodedata
 __all__ = ['Xaml', ]
 __metaclass__ = type
 
-version = 0, 6, 1
+version = 0, 6, 2, 1
 
 module = globals()
 
@@ -371,7 +371,9 @@ class Tokenizer:
 
     def _get_data(self):
         line = self.data.get_line().rstrip('\n')
-        if line[-1:] == '/' and line[-2:] != '\\/':
+        if line.strip() == '/':
+            line = ' '
+        elif line[-1:] == '/' and line[-2:] != '\\/':
             line = line[:-1].lstrip()
         else:
             line = line.strip()
