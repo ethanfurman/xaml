@@ -18,7 +18,7 @@ syn include @xamlJavaScriptTop syntax/javascript.vim
 syn include @xamlCSSTop syntax/css.vim
 "
 "syn case match
-syn match xamlTag "\~\w\+" contained
+syn match xamlTag "\~[-:a-zA-Z0-9]\+" contained
 syn match xamlClass "\.\w[^:!"#$%&'()*+,/;<=>?@[\]^`{|}~ ]*" contained
 syn match xamlId "#\w[^:!"#$%&'()*+,/;<=>?@[\]^`{|}~ ]*" contained
 syn match xamlString "$\w[^:!"#$%&'()*+,/;<=>?@[\]^`{|}~ ]*" contained
