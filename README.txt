@@ -8,6 +8,7 @@ an xml/http element::
 
   - an element continues until eol, or an unquoted :
   - an element can be continued to the next line(s) using unquoted parens
+    or by starting the next line with a pipe (|)
 
 if a line starts with a ":" it is specifying how the following lines should
 be interpreted::

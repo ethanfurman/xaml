@@ -447,7 +447,7 @@ class TestXaml(TestCase):
             )
         self.assertMultiLineEqual(expected, Xaml(input).document.pages[0].string())
 
-    def test_slash_only_is_replaced_with_space(self):
+    def test_slash_only_preserves_white_space(self):
         input = (
             '''!!!xml1.0\n'''
             '''~sample\n'''
@@ -457,6 +457,77 @@ class TestXaml(TestCase):
             '''<?xml version="1.0" encoding="utf-8"?>\n'''
             '''<sample>\n'''
             '''    <items> </items>\n'''
+            '''</sample>'''
+            ).encode('utf-8')
+        self.assertSequenceEqual(expected, Xaml(input).document.pages[0].bytes())
+        input = (
+            '''!!!xml1.0\n'''
+            '''~sample\n'''
+            '''    ~items:   /\n'''
+            )
+        expected = (
+            '''<?xml version="1.0" encoding="utf-8"?>\n'''
+            '''<sample>\n'''
+            '''    <items>   </items>\n'''
+            '''</sample>'''
+            ).encode('utf-8')
+        self.assertSequenceEqual(expected, Xaml(input).document.pages[0].bytes())
+        input = (
+            '''!!!xml1.0\n'''
+            '''~sample\n'''
+            '''    ~items:    / \n'''
+            )
+        expected = (
+            '''<?xml version="1.0" encoding="utf-8"?>\n'''
+            '''<sample>\n'''
+            '''    <items>    </items>\n'''
+            '''</sample>'''
+            ).encode('utf-8')
+        self.assertSequenceEqual(expected, Xaml(input).document.pages[0].bytes())
+
+    def test_pipe_continuation_lines(self):
+        input = (
+            '''!!!xml1.0\n'''
+            '''~sample\n'''
+            '''    ~items\n'''
+            '''    | options="{'this': 'that'}"\n'''
+            '''    | readonly='1'\n'''
+            )
+        expected = (
+            '''<?xml version="1.0" encoding="utf-8"?>\n'''
+            '''<sample>\n'''
+            '''    <items options="{'this': 'that'}" readonly="1"/>\n'''
+            '''</sample>'''
+            ).encode('utf-8')
+        self.assertSequenceEqual(expected, Xaml(input).document.pages[0].bytes())
+        input = (
+            '''!!!xml1.0\n'''
+            '''~sample\n'''
+            '''    ~items\n'''
+            '''    | options="{'this': 'that'}"\n'''
+            '''    | readonly='1'\n'''
+            '''\n'''
+            )
+        expected = (
+            '''<?xml version="1.0" encoding="utf-8"?>\n'''
+            '''<sample>\n'''
+            '''    <items options="{'this': 'that'}" readonly="1"/>\n'''
+            '''</sample>'''
+            ).encode('utf-8')
+        self.assertSequenceEqual(expected, Xaml(input).document.pages[0].bytes())
+        input = (
+            '''!!!xml1.0\n'''
+            '''~sample\n'''
+            '''    ~items\n'''
+            '''    | options="{'this': 'that'}"\n'''
+            '''    | readonly='1'\n'''
+            '''    ~another_item: Hello!\n'''
+            )
+        expected = (
+            '''<?xml version="1.0" encoding="utf-8"?>\n'''
+            '''<sample>\n'''
+            '''    <items options="{'this': 'that'}" readonly="1"/>\n'''
+            '''    <another_item>Hello!</another_item>\n'''
             '''</sample>'''
             ).encode('utf-8')
         self.assertSequenceEqual(expected, Xaml(input).document.pages[0].bytes())

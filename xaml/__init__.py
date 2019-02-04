@@ -7,7 +7,10 @@ Copyright 2015 Ethan Furman -- All rights reserved.
 """
 # imports
 from __future__ import unicode_literals, print_function
-from enum import Enum
+try:
+    from aenum import Enum
+except ImportError:
+    from enum import Enum
 import re
 import sys
 import textwrap
@@ -306,7 +309,7 @@ class Tokenizer:
         else:
             if line:
                 chars = list(reversed(list(line)))
-                while chars[-1] in ws:
+                while chars and chars[-1] in ws:
                     chars.pop()
                 line = ''.join(reversed(chars))
             return line
@@ -333,14 +336,23 @@ class Tokenizer:
             if self.open_parens:
                 raise ParseError(self.data.lineno+self.skipped_lines, 'unclosed parens')
             self.data.get_char()
-            self.state.pop()
+            old_state = self.state.pop()
             if ch == ':':
                 if not self.data.peek_line().strip():
                     raise ParseError(self.data.lineno+self.skipped_lines, 'nothing after :')
                 self.state.append(s.DATA)
+                return self.get_token()
             elif ch == '/':
                 self.state.append(s.CONTENT)
-            return self.get_token()
+                return self.get_token()
+            elif ch == '\n':
+                next_line = self.data.peek_line()
+                if next_line is None or next_line.lstrip()[:1] != '|':
+                    return self.get_token()
+                while ch != '|':
+                    ch = self.data.get_char()
+                ch = self.data.get_char()
+                self.state.append(old_state)
         # collect the name
         name, disallow_quotes = self._get_name()
         # _get_name left ch at the '=', or the next non-ws character
@@ -371,8 +383,10 @@ class Tokenizer:
 
     def _get_data(self):
         line = self.data.get_line().rstrip('\n')
+        strip_ws = True
         if line.strip() == '/':
-            line = ' '
+            line = line.split('/', 1)[0]
+            strip_ws = False
         elif line[-1:] == '/' and line[-2:] != '\\/':
             line = line[:-1].lstrip()
         else:
@@ -389,7 +403,8 @@ class Tokenizer:
         elif line[:2] == '&=':
             data_type = tt.CODE_DATA
             line = line[2:]
-        line = self._consume_ws(line)
+        if strip_ws:
+            line = self._consume_ws(line)
         self.state.pop()
         return Token(data_type, line, make_safe)
 
