@@ -1628,6 +1628,69 @@ class TestXaml(TestCase):
             ])
         self.assertMultiLineEqual(expected, Xaml(input, doc_type='html').document.pages[0].string())
 
+    def test_inline_elements(self):
+        input = '\n'.join([
+            '''~opentag''',
+            '''    ~data''',
+            '''        ~table''',
+            '''            ~tr''',
+            '''                ~td : @some_field''',
+            '''                ~td : @some_other_field''',
+            ])
+        expected = '\n'.join([
+            '''<opentag>''',
+            '''    <data>''',
+            '''        <table>''',
+            '''            <tr>''',
+            '''                <td>''',
+            '''                    <field name="some_field"/>''',
+            '''                </td>''',
+            '''                <td>''',
+            '''                    <field name="some_other_field"/>''',
+            '''                </td>''',
+            '''            </tr>''',
+            '''        </table>''',
+            '''    </data>''',
+            '''</opentag>''',
+            ]).encode('utf-8')
+        self.assertSequenceEqual(expected, Xaml(input).document.pages[0].bytes())
+        input = (
+            '''~opentag\n'''
+            '''    ~data\n'''
+            '''        ~blockTable colWidths='78, 142' style='lines'\n'''
+            '''            ~tr\n'''
+            '''                ~td : ~xsl:text: Department\n'''
+            '''                ~td : ~xsl:value-of select='dept'\n'''
+            '''            ~tr\n'''
+            '''                ~td : ~xsl:text: Request by\n'''
+            '''                ~td : ~xsl:value-of select='request-by'\n'''
+            )
+        expected = (
+            '''<opentag>\n'''
+            '''    <data>\n'''
+            '''        <blockTable colWidths="78, 142" style="lines">\n'''
+            '''            <tr>\n'''
+            '''                <td>\n'''
+            '''                    <xsl:text>Department</xsl:text>\n'''
+            '''                </td>\n'''
+            '''                <td>\n'''
+            '''                    <xsl:value-of select="dept"/>\n'''
+            '''                </td>\n'''
+            '''            </tr>\n'''
+            '''            <tr>\n'''
+            '''                <td>\n'''
+            '''                    <xsl:text>Request by</xsl:text>\n'''
+            '''                </td>\n'''
+            '''                <td>\n'''
+            '''                    <xsl:value-of select="request-by"/>\n'''
+            '''                </td>\n'''
+            '''            </tr>\n'''
+            '''        </blockTable>\n'''
+            '''    </data>\n'''
+            '''</opentag>'''
+            )
+        self.assertSequenceEqual(expected, Xaml(input).document.pages[0].string())
+
 class TestPPLCStream(TestCase):
 
     def test_get_char(self):

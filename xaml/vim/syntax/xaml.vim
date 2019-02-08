@@ -28,7 +28,7 @@ syn match xamlPython "`[^`]*`" contains=@xamlPythonTop
 
 syn region xamlAttributeSQuote start=+'+ skip=+\%(\\\\\)*\\'+ end=+'+ contained keepend
 syn region xamlAttributeDQuote start=+"+ skip=+\%(\\\\\)*\\"+ end=+"+ contained keepend
-syn region xamlLine start="\(^\s*\)\@<=[~.#$@]" end="[/\]:\n]" contains=xamlTag,xamlClass,xamlId,xamlString,xamlName,xamlAttributeSQuote,xamlAttributeDQuote
+syn region xamlLine start="\(^\s*\|\s:\s\)\@<=[~.#$@]" end="[/\]\n]\|:\s\@=" contains=xamlTag,xamlClass,xamlId,xamlString,xamlName,xamlAttributeSQuote,xamlAttributeDQuote
 "
 "syn cluster xamlComponent    contains=xamlBegin,xamlClassChar,xamlIdChar,xamlNameChar,xamlStringChar,xamlPython,xamlPlainChar,xamlInterpolatable
 "syn cluster xamlEmbeddedPython contains=xamlPython,xamlPythonFilter,xamlPythonTickQuote

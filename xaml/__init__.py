@@ -19,7 +19,7 @@ import unicodedata
 __all__ = ['Xaml', ]
 __metaclass__ = type
 
-version = 0, 6, 2
+version = 0, 6, 3, 1
 
 module = globals()
 
@@ -383,6 +383,17 @@ class Tokenizer:
 
     def _get_data(self):
         line = self.data.get_line().rstrip('\n')
+        # check for sneaky xaml token
+        if line.lstrip()[0:1] in self.defaults:
+            # found one!
+            self.state.pop()
+            self.state.append(s.NORMAL)
+            new_indent = self.indents[-1] + 4
+            self.indents.append(new_indent)
+            new_line = ' ' * new_indent + line.lstrip()
+            self.data.push_line(new_line)
+            return Token(tt.INDENT)
+        # no xaml token, look for actual data
         strip_ws = True
         if line.strip() == '/':
             line = line.split('/', 1)[0]
