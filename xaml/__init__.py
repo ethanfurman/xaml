@@ -3,7 +3,7 @@ xaml -- xml abstract markup language
 
 https://bitbucket.org/stoneleaf/xaml
 
-Copyright 2015 Ethan Furman -- All rights reserved.
+Copyright 2015-2019 Ethan Furman -- All rights reserved.
 """
 # imports
 from __future__ import unicode_literals, print_function
