@@ -1709,8 +1709,8 @@ class TestXaml(TestCase):
             '''    ~data''',
             '''        ~table''',
             '''            ~tr''',
-            '''                ~td : @some_field''',
-            '''                ~td : @some_other_field''',
+            '''                ~td : ~field @some_field''',
+            '''                ~td : ~field @some_other_field''',
             ])
         expected = '\n'.join([
             '''<opentag>''',

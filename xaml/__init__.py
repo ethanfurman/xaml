@@ -383,8 +383,8 @@ class Tokenizer:
 
     def _get_data(self):
         line = self.data.get_line().rstrip('\n')
-        # check for sneaky xaml token
-        if line.lstrip()[0:1] in self.defaults:
+        # check for sneaky xaml token (must start with ~ )
+        if line.lstrip()[0:1] == '~':
             # found one!
             self.state.pop()
             self.state.append(s.NORMAL)
