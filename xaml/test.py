@@ -604,6 +604,14 @@ class TestXaml(TestCase):
             '''                        <group colspan="2">\n'''
             '''                            <field name="user_id" options="{'limit':15, 'create':0, 'create_edit':0}" readonly="1"/>\n'''
             '''                            <field name="request_type" on_change="onchange_request_type(user_id, contact_id, partner_id, ship_to_id, request_type, lead_id, lead_partner, lead_contact, context)" widget="radio" writeonly="groups('base.group_sale_salesman,sample.group_sample_user')"/>\n'''
+            '''                        </group>\n'''
+            '''                    </group>\n'''
+            '''                </form>\n'''
+            '''            </field>\n'''
+            '''        </record>\n'''
+            '''\n'''
+            '''    </data>\n'''
+            '''</openerp>'''
             )
         self.assertSequenceEqual(expected, Xaml(input).document.pages[0].string())
 
