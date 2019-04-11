@@ -531,6 +531,81 @@ class TestXaml(TestCase):
             '''</sample>'''
             ).encode('utf-8')
         self.assertSequenceEqual(expected, Xaml(input).document.pages[0].bytes())
+        input = (
+            '''!!!xml1.0\n'''
+            '''~sample\n'''
+            '''    @some_field\n'''
+            '''    | options="{'this': 'that'}"\n'''
+            '''    | readonly='1'\n'''
+            '''    @another_field\n'''
+            )
+        expected = (
+            '''<?xml version="1.0"?>\n'''
+            '''<sample>\n'''
+            '''    <field name="some_field" options="{'this': 'that'}" readonly="1"/>\n'''
+            '''    <field name="another_field"/>\n'''
+            '''</sample>'''
+            )
+        self.assertSequenceEqual(expected, Xaml(input).document.pages[0].string())
+        input = (
+            '''~openerp\n'''
+            '''    ~data noupdate='0'\n'''
+            '''\n'''
+            '''        ~record model='ir.ui.view' #sample_request_form\n'''
+            '''            @name: sample.request.form\n'''
+            '''            @model: sample.request\n'''
+            '''            @arch type='xml'\n'''
+            '''                ~form $Sample_Request version='7.0' edit="[('is_historical','=',False),('state','!=','complete')]" setup='onload(user_id, contact_id, partner_id, ship_to_id, request_type, lead_id, lead_partner, lead_contact, context)'\n'''
+            '''                    ~header\n'''
+            '''                        ~button @button_sample_submit $Submit .oe_edit_hide type='object' attrs="{'invisible': ['|',('state','!=', 'draft'),('product_ids','=',[])]}"\n'''
+            '''                        ~button @button_sample_complete $Done .oe_edit_hide type='object' attrs="{'invisible': [('state','!=','production')]}"\n'''
+            '''                        ~button @button_sample_reprint $Reprint_Labels .oe_edit_hide type='object' attrs="{'invisible': [('state','!=','complete')]}"\n'''
+            '''                        @state widget='statusbar'\n'''
+            '''                    @id invisible='1'\n'''
+            '''                    @ref_num invisible='1'\n'''
+            '''                    @partner_is_company invisible='1'\n'''
+            '''                    @is_historical invisible='1'\n'''
+            '''                    ~div .oe_title\n'''
+            '''                        ~h1\n'''
+            '''                            @ref_name attrs="{'invisible': [('id','=',False)]}"\n'''
+            '''                    ~group col='5'\n'''
+            '''                        ~group colspan='2'\n'''
+            '''                            @user_id readonly="1" options="{'limit':15, 'create':0, 'create_edit':0}"\n'''
+            '''                            @request_type\n'''
+            '''                            | on_change='onchange_request_type(user_id, contact_id, partner_id, ship_to_id, request_type, lead_id, lead_partner, lead_contact, context)'\n'''
+            '''                            | widget='radio'\n'''
+            '''                            | writeonly="groups('base.group_sale_salesman,sample.group_sample_user')"\n'''
+            )
+        expected = (
+            '''<openerp>\n'''
+            '''    <data noupdate="0">\n'''
+            '''\n'''
+            '''        <record id="sample_request_form" model="ir.ui.view">\n'''
+            '''            <field name="name">sample.request.form</field>\n'''
+            '''            <field name="model">sample.request</field>\n'''
+            '''            <field name="arch" type="xml">\n'''
+            '''                <form edit="[('is_historical','=',False),('state','!=','complete')]" setup="onload(user_id, contact_id, partner_id, ship_to_id, request_type, lead_id, lead_partner, lead_contact, context)" string="Sample Request" version="7.0">\n'''
+            '''                    <header>\n'''
+            '''                        <button name="button_sample_submit" class="oe_edit_hide" attrs="{'invisible': ['|',('state','!=', 'draft'),('product_ids','=',[])]}" string="Submit" type="object"/>\n'''
+            '''                        <button name="button_sample_complete" class="oe_edit_hide" attrs="{'invisible': [('state','!=','production')]}" string="Done" type="object"/>\n'''
+            '''                        <button name="button_sample_reprint" class="oe_edit_hide" attrs="{'invisible': [('state','!=','complete')]}" string="Reprint Labels" type="object"/>\n'''
+            '''                        <field name="state" widget="statusbar"/>\n'''
+            '''                    </header>\n'''
+            '''                    <field name="id" invisible="1"/>\n'''
+            '''                    <field name="ref_num" invisible="1"/>\n'''
+            '''                    <field name="partner_is_company" invisible="1"/>\n'''
+            '''                    <field name="is_historical" invisible="1"/>\n'''
+            '''                    <div class="oe_title">\n'''
+            '''                        <h1>\n'''
+            '''                            <field name="ref_name" attrs="{'invisible': [('id','=',False)]}"/>\n'''
+            '''                        </h1>\n'''
+            '''                    </div>\n'''
+            '''                    <group col="5">\n'''
+            '''                        <group colspan="2">\n'''
+            '''                            <field name="user_id" options="{'limit':15, 'create':0, 'create_edit':0}" readonly="1"/>\n'''
+            '''                            <field name="request_type" on_change="onchange_request_type(user_id, contact_id, partner_id, ship_to_id, request_type, lead_id, lead_partner, lead_contact, context)" widget="radio" writeonly="groups('base.group_sale_salesman,sample.group_sample_user')"/>\n'''
+            )
+        self.assertSequenceEqual(expected, Xaml(input).document.pages[0].string())
 
     def test_trailing_slashes_are_removed(self):
         input = (
