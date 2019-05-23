@@ -19,8 +19,7 @@ import unicodedata
 __all__ = ['Xaml', ]
 __metaclass__ = type
 
-version = 0, 6, 5, 1
-
+version = 0, 6, 5, 2
 
 try:
     unicode
@@ -767,7 +766,22 @@ class ML:
 
 class Xaml(object):
 
+    _cache = {}
+    _init = False
+
+    def __new__(cls, text, _parse=True, _compile=True, doc_type=None, **namespace):
+        _cache_key = text, _parse, _compile, doc_type, tuple(namespace.items())
+        if _cache_key in cls._cache:
+            return cls._cache[_cache_key]
+        else:
+            obj = object.__new__(cls)
+            cls._cache[_cache_key] = obj
+            return obj
+
     def __init__(self, text, _parse=True, _compile=True, doc_type=None, **namespace):
+        if self._init is True:
+            return
+        self._init = True
         streams = split_streams(decode(text))
         docs = self._document = XamlDoc(streams)
         if _parse:
