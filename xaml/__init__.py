@@ -19,9 +19,8 @@ import unicodedata
 __all__ = ['Xaml', ]
 __metaclass__ = type
 
-version = 0, 6, 4
+version = 0, 6, 5, 1
 
-module = globals()
 
 try:
     unicode
@@ -1115,7 +1114,9 @@ class Xaml(object):
                 """\n""",
                 """class Args:\n""",
                 """    def __init__(self, kwds):\n""",
+                """        self.__keys = []\n""",
                 """        for k, v in kwds.items():\n""",
+                """            self.__keys.append(k)\n""",
                 """            setattr(self, k, v)\n""",
                 """\n""",
                 """class Blank:\n""",
@@ -1210,7 +1211,9 @@ class Xaml(object):
                 ]
         post_code = [
                 """\n""",
-                """    return '\\n'.join(output)""",
+                """    result = '\\n'.join(output)\n""",
+                """    output[:] = []\n""",
+                """    return result\n""",
                 ]
         page.code = code = ''.join(pre_code+output+post_code)
         glbls = globals().copy()

@@ -2344,6 +2344,53 @@ class TestMultiDoc(TestCase):
     #     raise NotImplementedError()
 
 
+class TestMemoryLeak(TestCase):
+
+    def test_multiple_iteration_sanity(self):
+        res = {}
+        template = Xaml(file_list).document.pages[0]
+        for id in range(100000):
+            res[id] = file_list * 50
+
+    def test_multiple_iteration_real(self):
+        res = {}
+        for id in range(100000):
+            template = Xaml(file_list).document.pages[0]
+            website_download = 'blablah%d' % id
+            leaf_path = 'haha_%d' % id
+            web_folder = '%d-uhoh' % id
+            display_files = ['this_%d' % id, 'that_%d' % id, 'these_%d' % id]
+            safe_files = ['ths_%d' % id, 'tht_%d' % id, 'thse_%d' % id]
+            website_select = '/some/stuff?model=yeahright-%d' % id
+            perms = 'read'
+            res[id] = template.string(
+                    download=website_download,
+                    path=leaf_path,
+                    folder=web_folder,
+                    display_files=display_files,
+                    web_files=safe_files,
+                    select=website_select,
+                    permissions=perms,
+                    )
+
+
+file_list = '''
+~div
+    ~ul
+        -for wfile, dfile in zip(args.web_files, args.display_files):
+            -path = '%s?path=%s&folder=%s&file=%s' % (args.download, args.path, args.folder, wfile)
+            ~li
+                ~a href=path target='_blank': =dfile
+    ~br
+    -if args.permissions == 'write/unlink':
+        ~a href=args.select target='_blank': Add/Delete files...
+    -elif args.permissions == 'write':
+        ~a href=args.select target='_blank': Add files...
+    -elif args.permissions == 'unlink':
+        ~a href=args.select target='_blank': Delete files...
+'''
+
+
 def xml2dict(line):
     if isinstance(line, bytes):
         line = line.decode('utf-8')
