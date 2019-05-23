@@ -19,7 +19,7 @@ import unicodedata
 __all__ = ['Xaml', ]
 __metaclass__ = type
 
-version = 0, 6, 5, 2
+version = 0, 6, 5
 
 try:
     unicode
