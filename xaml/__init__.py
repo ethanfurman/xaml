@@ -19,7 +19,7 @@ import unicodedata
 __all__ = ['Xaml', ]
 __metaclass__ = type
 
-version = 0, 6, 5
+version = 0, 6, 6, 3
 
 try:
     unicode
@@ -1056,6 +1056,9 @@ class Xaml(object):
                     if 'type' not in attrs:
                         attrs['type'] = u'text/javascript'
                     output.append(blank + 'with Element(u"script", attrs=%r):\n' % attrs)
+                    for line in textwrap.dedent(lines).strip().split('\n'):
+                        output.append(blank + '    Content(%r)\n' % line)
+                elif name == 'html':
                     for line in textwrap.dedent(lines).strip().split('\n'):
                         output.append(blank + '    Content(%r)\n' % line)
                 elif name == 'css':
